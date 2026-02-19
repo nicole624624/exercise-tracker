@@ -30,28 +30,35 @@
         .sheet-body { padding: 16px; }
         .popup { background: white; border-radius: 24px; width: 100%; max-width: 400px; padding: 24px; }
 
-        /* ── 日历格子变大 ── */
+        /* ── 日历 ── */
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .cal-hd { text-align: center; font-size: 11px; font-weight: 700; color: #6b7280; padding: 4px 0; }
-        .cal-empty { aspect-ratio: 3/4; }
+        .cal-empty { /* grid 自动处理尺寸 */ }
         .cal-day {
-            position: relative; width: 100%; aspect-ratio: 3/4; border-radius: 9px; overflow: hidden;
-            border: none; cursor: pointer; padding: 3px; touch-action: manipulation; -webkit-user-select: none;
-            text-align: left; display: block; background: #f3f4f6; color: #374151;
-            font-size: 12px; font-weight: 700; transition: transform 0.1s;
+            position: relative; width: 100%; aspect-ratio: 2/3;
+            border-radius: 12px; overflow: hidden;
+            border: none; cursor: pointer; padding: 0;
+            touch-action: manipulation; -webkit-user-select: none;
+            display: block; background: #f3f4f6; color: #374151;
+            transition: transform 0.1s;
         }
         .cal-day:active { transform: scale(0.88); }
         .cal-day.checked { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
         .cal-day.today-ring { outline: 2px solid #a855f7; outline-offset: 1px; }
         /* ── 未来日期置灰不可点 ── */
         .cal-day.future { opacity: 0.28; cursor: default; pointer-events: none; }
-        .cal-icon { position: absolute; top: 1px; right: 2px; font-size: 11px; line-height: 1; }
-        /* ── 日记显示区域变大，显示3行 ── */
+        /* ── 日期固定左上角 ── */
+        .cal-day-num {
+            position: absolute; top: 5px; left: 6px;
+            font-size: 13px; font-weight: 700; line-height: 1; z-index: 1;
+        }
+        .cal-icon { position: absolute; top: 2px; right: 3px; font-size: 12px; line-height: 1; }
+        /* ── 日记占满下方区域，更多行 ── */
         .cal-note {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.42);
-            padding: 2px 3px; font-size: 8px; line-height: 1.35; color: white;
-            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; word-break: break-all;
+            background: rgba(0,0,0,0.45);
+            padding: 3px 4px; font-size: 8px; line-height: 1.4; color: white;
+            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; word-break: break-all;
         }
 
         .btn { border-radius: 12px; font-weight: 700; transition: transform 0.1s; cursor: pointer; }
@@ -293,7 +300,6 @@ async function persist(){
 }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// 判断是否是未来日期
 function isFutureDate(y, m, d) {
     const today = new Date();
     const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -371,7 +377,6 @@ function headerCard(ph, cpDays, today){
 }
 
 function statsCard(ps, total){
-    // ── 每日日签 ──
     const q = getDailyQuote();
     const todayStr = new Date().toLocaleDateString('zh-CN', {month:'long', day:'numeric', weekday:'long'});
 
@@ -415,16 +420,17 @@ function calendarCard(today, isCurMonth){
         if(isToday && !checked) cls += ' today-ring';
         if(future) cls += ' future';
         const bg = checked ? `background:${rph.grad};` : '';
-        // 未来日期不绑定点击事件
         const clickAttr = future ? '' : `onclick="clickDay(${d})"`;
+        // ── 日期统一左上角，用 cal-day-num ──
         cells += `<button class="${cls}" style="${bg}" ${clickAttr}>
-            <span>${d}</span>
+            <span class="cal-day-num">${d}</span>
             ${checked?`<span class="cal-icon">${rph.icon}</span>`:''}
             ${note?`<span class="cal-note">${esc(note)}</span>`:''}
         </button>`;
     }
-    return `<div class="card">
-        <div class="row-sb mb16">
+    // ── 日历卡片全宽，抵消 page 的 12px 左右内边距 ──
+    return `<div class="card" style="margin-left:-12px;margin-right:-12px;padding:16px 8px;">
+        <div class="row-sb mb12">
             <button class="btn btn-ghost" style="padding:8px 14px;font-size:18px;" onclick="prevMonth()">‹</button>
             <div style="text-align:center;flex:1;">
                 <h2 class="grad-text" style="font-size:20px;font-weight:700;">${st.year}年 ${MONTHS[st.month]}</h2>
@@ -436,7 +442,7 @@ function calendarCard(today, isCurMonth){
             ${['日','一','二','三','四','五','六'].map(d=>`<div class="cal-hd">${d}</div>`).join('')}
         </div>
         <div class="cal-grid">${cells}</div>
-        <div class="tip-box mt16">
+        <div class="tip-box mt12">
             <p style="font-size:11px;color:#374151;font-weight:700;margin-bottom:6px;">💡 提示：</p>
             <p style="font-size:11px;color:#6b7280;margin-bottom:6px;">点击今天或过去的日期打卡，笔记可选填</p>
             <div class="row gap8" style="flex-wrap:wrap;">
@@ -605,7 +611,6 @@ function exportModal(){
 // EVENT HANDLERS
 // ─────────────────────────────────────────
 function clickDay(d){
-    // 二次保险：未来日期直接拦截
     if(isFutureDate(st.year, st.month, d)) return;
     const key = dk(st.year, st.month, d);
     st.selectedDate = key;
@@ -751,7 +756,6 @@ function saveUserName(){
         if(!name&&pNum>=1&&pNum<=4) st.showPhaseSelector=true;
         if(records) st.records=records;
         if(notes) st.notes=notes;
-        // 确保每次打开都是当天所在月份
         const now = new Date();
         st.year = now.getFullYear();
         st.month = now.getMonth();
