@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>运动型姐妹运动打卡</title>
+    <script crossorigin src="https://unpkg.com/react@15/dist/react.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@15/dist/react-dom.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            width: 100%;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .member-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .member-tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #667eea;
+            font-weight: 500;
+        }
+
+        .member-tab:hover {
+            background: #f0f0ff;
+        }
+
+        .member-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .member-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .member-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .member-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .member-data {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+
+        .member-data-item {
+            text-align: center;
+        }
+
+        .member-data-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .member-data-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .record-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .record-member {
+            display: inline-block;
+            padding: 4px 12px;
+            background: #667eea;
+            color: white;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+
+        .record-type {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .record-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .record-details {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 8px;
+            width: auto;
+        }
+
+        .delete-btn:hover {
+            background: #c82333;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .filter-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-label {
+            font-weight: 500;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .member-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { Component } = React;
+
+        class ExerciseTracker extends Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    exercises: JSON.parse(localStorage.getItem('exercises')) || [],
+                    currentFilter: 'all',
+                    formData: {
+                        member: '',
+                        type: '',
+                        duration: '',
+                        date: new Date().toISOString().split('T')[0],
+                        notes: ''
+                    }
+                };
+            }
+
+            getUniqueMembers = () => {
+                const members = [...new Set(this.state.exercises.map(ex => ex.member))];
+                return members.sort();
+            }
+
+            getMemberStats = (member) => {
+                const memberExercises = this.state.exercises.filter(ex => ex.member === member);
+                const uniqueDays = new Set(memberExercises.map(ex => ex.date)).size;
+                const totalMinutes = memberExercises.reduce((sum, ex) => sum + ex.duration, 0);
+                
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const thisWeekCount = memberExercises.filter(ex => new Date(ex.date) >= weekAgo).length;
+                
+                return { uniqueDays, totalMinutes, thisWeekCount, totalCount: memberExercises.length };
+            }
+
+            handleInputChange = (e) => {
+                const { name, value } = e.target;
+                this.setState({
+                    formData: { ...this.state.formData, [name]: value }
+                });
+            }
+
+            handleSubmit = (e) => {
+                e.preventDefault();
+                const { member, type, duration, date, notes } = this.state.formData;
+
+                const exercise = {
+                    id: Date.now(),
+                    member: member.trim(),
+                    type,
+                    duration: parseInt(duration),
+                    date,
+                    notes: notes.trim(),
+                    createdAt: new Date().toISOString()
+                };
+
+                const exercises = [exercise, ...this.state.exercises];
+                localStorage.setItem('exercises', JSON.stringify(exercises));
+                
+                this.setState({
+                    exercises,
+                    formData: {
+                        member: '',
+                        type: '',
+                        duration: '',
+                        date: new Date().toISOString().split('T')[0],
+                        notes: ''
+                    }
+                });
+
+                alert(`✅ ${exercise.member}的运动记录添加成功！`);
+            }
+
+            deleteRecord = (id) => {
+                if (confirm('确定要删除这条记录吗？')) {
+                    const exercises = this.state.exercises.filter(ex => ex.id !== id);
+                    localStorage.setItem('exercises', JSON.stringify(exercises));
+                    this.setState({ exercises });
+                }
+            }
+
+            filterByMember = (member) => {
+                this.setState({ currentFilter: member });
+            }
+
+            render() {
+                const { exercises, currentFilter, formData } = this.state;
+                const members = this.getUniqueMembers();
+                const filteredExercises = currentFilter === 'all' 
+                    ? exercises 
+                    : exercises.filter(ex => ex.member === currentFilter);
+
+                const totalMinutes = exercises.reduce((sum, ex) => sum + ex.duration, 0);
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const thisWeekCount = exercises.filter(ex => new Date(ex.date) >= weekAgo).length;
+
+                return (
+                    <div className="container">
+                        <h1>🏃‍♀️ 运动型姐妹运动打卡 💪</h1>
+
+                        {/* 成员统计 */}
+                        <div className="member-stats">
+                            {members.map(member => {
+                                const stats = this.getMemberStats(member);
+                                return (
+                                    <div key={member} className="member-card">
+                                        <div className="member-name">👤 {member}</div>
+                                        <div className="member-data">
+                                            <div className="member-data-item">
+                                                <div className="member-data-value">{stats.totalCount}</div>
+                                                <div className="member-data-label">总打卡</div>
+                                            </div>
+                                            <div className="member-data-item">
+                                                <div className="member-data-value">{stats.uniqueDays}</div>
+                                                <div className="member-data-label">打卡天数</div>
+                                            </div>
+                                            <div className="member-data-item">
+                                                <div className="member-data-value">{stats.totalMinutes}</div>
+                                                <div className="member-data-label">总时长(分)</div>
+                                            </div>
+                                            <div className="member-data-item">
+                                                <div className="member-data-value">{stats.thisWeekCount}</div>
+                                                <div className="member-data-label">本周打卡</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* 总体统计 */}
+                        <div className="stats-grid">
+                            <div className="stat-card">
+                                <div className="stat-number">{exercises.length}</div>
+                                <div className="stat-label">总打卡次数</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{totalMinutes}</div>
+                                <div className="stat-label">总运动时长(分钟)</div>
+                            </div>
+                            <div className="stat-card">
+                                <div className="stat-number">{thisWeekCount}</div>
+                                <div className="stat-label">本周总打卡</div>
+                            </div>
+                        </div>
+
+                        {/* 添加记录表单 */}
+                        <div className="card">
+                            <h2 style={{marginBottom: '20px', color: '#333'}}>📝 添加运动记录</h2>
+                            <form onSubmit={this.handleSubmit}>
+                                <div className="input-group">
+                                    <label htmlFor="member">成员姓名 *</label>
+                                    <input
+                                        type="text"
+                                        id="member"
+                                        name="member"
+                                        value={formData.member}
+                                        onChange={this.handleInputChange}
+                                        required
+                                        placeholder="请输入姓名"
+                                        list="memberList"
+                                    />
+                                    <datalist id="memberList">
+                                        {members.map(member => (
+                                            <option key={member} value={member} />
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="type">运动类型 *</label>
+                                    <select
+                                        id="type"
+                                        name="type"
+                                        value={formData.type}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    >
+                                        <option value="">请选择运动类型</option>
+                                        <option value="跑步">🏃‍♀️ 跑步</option>
+                                        <option value="瑜伽">🧘‍♀️ 瑜伽</option>
+                                        <option value="游泳">🏊‍♀️ 游泳</option>
+                                        <option value="健身">💪 健身</option>
+                                        <option value="骑行">🚴‍♀️ 骑行</option>
+                                        <option value="跳绳">🦘 跳绳</option>
+                                        <option value="普拉提">🤸‍♀️ 普拉提</option>
+                                        <option value="爬山">⛰️ 爬山</option>
+                                        <option value="其他">✨ 其他</option>
+                                    </select>
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="duration">运动时长(分钟) *</label>
+                                    <input
+                                        type="number"
+                                        id="duration"
+                                        name="duration"
+                                        value={formData.duration}
+                                        onChange={this.handleInputChange}
+                                        min="1"
+                                        required
+                                        placeholder="例如：30"
+                                    />
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="date">运动日期 *</label>
+                                    <input
+                                        type="date"
+                                        id="date"
+                                        name="date"
+                                        value={formData.date}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="notes">备注(可选)</label>
+                                    <textarea
+                                        id="notes"
+                                        name="notes"
+                                        value={formData.notes}
+                                        onChange={this.handleInputChange}
+                                        placeholder="今天感觉怎么样？有什么想分享的？"
+                                    />
+                                </div>
+
+                                <button type="submit">✅ 添加记录</button>
+                            </form>
+                        </div>
+
+                        {/* 筛选区域 */}
+                        <div className="filter-section">
+                            <span className="filter-label">📊 查看成员：</span>
+                            <div className="member-tabs">
+                                <div
+                                    className={`member-tab ${currentFilter === 'all' ? 'active' : ''}`}
+                                    onClick={() => this.filterByMember('all')}
+                                >
+                                    🌟 全部成员
+                                </div>
+                                {members.map(member => (
+                                    <div
+                                        key={member}
+                                        className={`member-tab ${currentFilter === member ? 'active' : ''}`}
+                                        onClick={() => this.filterByMember(member)}
+                                    >
+                                        {member}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 运动记录列表 */}
+                        <div className="card">
+                            <h2 style={{marginBottom: '20px', color: '#333'}}>📊 运动记录</h2>
+                            {filteredExercises.length === 0 ? (
+                                <div className="empty-state">
+                                    {currentFilter === 'all' 
+                                        ? '还没有运动记录，快去添加吧！💪' 
+                                        : `${currentFilter} 还没有运动记录`}
+                                </div>
+                            ) : (
+                                filteredExercises.map(ex => (
+                                    <div key={ex.id} className="record-item">
+                                        <div className="record-header">
+                                            <div>
+                                                <span className="record-member">{ex.member}</span>
+                                                <span className="record-type">{ex.type}</span>
+                                            </div>
+                                            <span className="record-date">{ex.date}</span>
+                                        </div>
+                                        <div className="record-details">
+                                            ⏱️ 时长：{ex.duration} 分钟
+                                            {ex.notes && <><br />📝 备注：{ex.notes}</>}
+                                        </div>
+                                        <button 
+                                            className="delete-btn" 
+                                            onClick={() => this.deleteRecord(ex.id)}
+                                        >
+                                            🗑️ 删除
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+        }
+
+        ReactDOM.render(<ExerciseTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
