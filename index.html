@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>苹果型姐妹运动打卡</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info {
+            color: #666;
+            font-size: 18px;
+        }
+
+        .menu-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+
+        .menu-btn:active {
+            background: #764ba2;
+            transform: scale(0.95);
+        }
+
+        .stage-info {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .stage-info h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+        }
+
+        .stage-info p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .calendar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .calendar-header h2 {
+            color: #333;
+            font-size: 22px;
+        }
+
+        .month-nav {
+            display: flex;
+            gap: 15px;
+        }
+
+        .month-nav button {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+
+        .month-nav button:active {
+            background: #764ba2;
+            transform: scale(0.9);
+        }
+
+        .weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .weekday {
+            text-align: center;
+            color: #999;
+            font-weight: 600;
+            padding: 10px;
+            font-size: 14px;
+        }
+
+        .days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+
+        .day {
+            aspect-ratio: 1;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            padding: 5px;
+            background: white;
+            touch-action: manipulation;
+        }
+
+        .day:active {
+            transform: scale(0.95);
+        }
+
+        .day.other-month {
+            opacity: 0.3;
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .day.checked {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: white;
+        }
+
+        .day.today {
+            border-color: #ff6b6b;
+            border-width: 3px;
+        }
+
+        .day-number {
+            font-size: 16px;
+            font-weight: 600;
+            position: absolute;
+            top: 5px;
+            left: 8px;
+        }
+
+        .day-icon {
+            font-size: 20px;
+            position: absolute;
+            top: 5px;
+            right: 8px;
+        }
+
+        .day-note {
+            font-size: 11px;
+            text-align: center;
+            margin-top: auto;
+            width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 3px;
+        }
+
+        .day.checked .day-note {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 12px;
+        }
+
+        .stat-icon {
+            font-size: 30px;
+            margin-bottom: 8px;
+        }
+
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+            font-size: 22px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+            color: #333;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            font-family: inherit;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        .stage-options {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .stage-option {
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+            touch-action: manipulation;
+        }
+
+        .stage-option:active {
+            transform: scale(0.97);
+        }
+
+        .stage-option.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+            color: white;
+        }
+
+        .stage-option-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .stage-option-title {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .stage-option-desc {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .stage-option.selected .stage-option-desc {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        .welcome-modal .modal-content {
+            text-align: center;
+        }
+
+        .welcome-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+
+        .welcome-modal h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+
+        .welcome-modal p {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .menu-modal .menu-item {
+            padding: 18px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            touch-action: manipulation;
+        }
+
+        .menu-modal .menu-item:active {
+            background: #f8f9fa;
+            transform: scale(0.98);
+        }
+
+        .menu-modal .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .menu-item-icon {
+            font-size: 24px;
+        }
+
+        .menu-item-text {
+            flex: 1;
+        }
+
+        .menu-item-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
+        }
+
+        .menu-item-desc {
+            font-size: 12px;
+            color: #999;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .header {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .user-info {
+                font-size: 14px;
+            }
+
+            .calendar {
+                padding: 15px;
+            }
+
+            .day-number {
+                font-size: 14px;
+            }
+
+            .day-icon {
+                font-size: 16px;
+            }
+
+            .day-note {
+                font-size: 10px;
+            }
+
+            .stage-options {
+                grid-template-columns: 1fr;
+            }
+
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .modal-content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>🍎 苹果型姐妹运动打卡</h1>
+                <div class="user-info" id="userInfo">欢迎使用</div>
+            </div>
+            <button class="menu-btn" onclick="openMenu()" type="button">☰</button>
+        </div>
+
+        <div class="stage-info" id="stageInfo"></div>
+
+        <div class="calendar">
+            <div class="calendar-header">
+                <h2 id="currentMonth"></h2>
+                <div class="month-nav">
+                    <button onclick="changeMonth(-1)" type="button">←</button>
+                    <button onclick="changeMonth(1)" type="button">→</button>
+                </div>
+            </div>
+
+            <div class="weekdays">
+                <div class="weekday">日</div>
+                <div class="weekday">一</div>
+                <div class="weekday">二</div>
+                <div class="weekday">三</div>
+                <div class="weekday">四</div>
+                <div class="weekday">五</div>
+                <div class="weekday">六</div>
+            </div>
+
+            <div class="days" id="calendarDays"></div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="stat-icon">🚶‍♀️</div>
+                    <div class="stat-number" id="stage1Count">0</div>
+                    <div class="stat-label">阶段1</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">🏃‍♀️</div>
+                    <div class="stat-number" id="stage2Count">0</div>
+                    <div class="stat-label">阶段2</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">💪</div>
+                    <div class="stat-number" id="stage3Count">0</div>
+                    <div class="stat-label">阶段3</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-icon">🔥</div>
+                    <div class="stat-number" id="stage4Count">0</div>
+                    <div class="stat-label">阶段4</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 欢迎弹窗 -->
+    <div class="modal welcome-modal" id="welcomeModal">
+        <div class="modal-content">
+            <div class="welcome-icon">🎉</div>
+            <h2>欢迎使用</h2>
+            <p>苹果型姐妹运动打卡系统</p>
+            
+            <div class="form-group">
+                <label>请输入你的昵称：</label>
+                <input type="text" id="userName" placeholder="例如：小美">
+            </div>
+
+            <button class="btn btn-primary" onclick="submitUserName()" type="button" style="width: 100%;">
+                下一步 →
+            </button>
+        </div>
+    </div>
+
+    <!-- 选择阶段弹窗 -->
+    <div class="modal" id="stageModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span style="font-size: 32px;">🎯</span>
+                <h3>选择你的运动阶段</h3>
+            </div>
+
+            <div class="stage-options">
+                <div class="stage-option" data-stage="1" onclick="selectStage(1)">
+                    <div class="stage-option-icon">🚶‍♀️</div>
+                    <div class="stage-option-title">第一阶段</div>
+                    <div class="stage-option-desc">以"动起来"为目标</div>
+                </div>
+                <div class="stage-option" data-stage="2" onclick="selectStage(2)">
+                    <div class="stage-option-icon">🏃‍♀️</div>
+                    <div class="stage-option-title">第二阶段</div>
+                    <div class="stage-option-desc">燃脂 + 提高心肺</div>
+                </div>
+                <div class="stage-option" data-stage="3" onclick="selectStage(3)">
+                    <div class="stage-option-icon">💪</div>
+                    <div class="stage-option-title">第三阶段</div>
+                    <div class="stage-option-desc">力量为主，有氧为辅</div>
+                </div>
+                <div class="stage-option" data-stage="4" onclick="selectStage(4)">
+                    <div class="stage-option-icon">🔥</div>
+                    <div class="stage-option-title">第四阶段</div>
+                    <div class="stage-option-desc">上重量 + HIIT</div>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="confirmStage()" type="button" style="width: 100%; margin-top: 25px;">
+                ✓ 确认选择
+            </button>
+        </div>
+    </div>
+
+    <!-- 打卡弹窗 -->
+    <div class="modal" id="checkInModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span style="font-size: 32px;">📝</span>
+                <h3 id="checkInDate"></h3>
+            </div>
+
+            <p style="color: #666; margin-bottom: 20px;">点击"完成打卡"即可记录，笔记可选填</p>
+
+            <div class="form-group">
+                <textarea id="checkInNote" placeholder="记录今天的运动内容（可选）...&#10;例如：走路8000步，感觉很棒！"></textarea>
+            </div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="saveCheckIn()" type="button">
+                    ✓ 完成打卡
+                </button>
+                <button class="btn btn-danger" onclick="deleteCheckIn()" type="button" id="deleteBtn" style="display: none;">
+                    🗑 删除
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal('checkInModal')" type="button">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 菜单弹窗 -->
+    <div class="modal menu-modal" id="menuModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span style="font-size: 32px;">⚙️</span>
+                <h3>设置</h3>
+            </div>
+
+            <div class="menu-item" onclick="openStageChange()">
+                <div class="menu-item-icon">🎯</div>
+                <div class="menu-item-text">
+                    <div class="menu-item-title">切换阶段</div>
+                    <div class="menu-item-desc">更改当前运动阶段</div>
+                </div>
+            </div>
+
+            <div class="menu-item" onclick="exportData()">
+                <div class="menu-item-icon">📤</div>
+                <div class="menu-item-text">
+                    <div class="menu-item-title">导出备份</div>
+                    <div class="menu-item-desc">下载所有打卡数据</div>
+                </div>
+            </div>
+
+            <div class="menu-item" onclick="importData()">
+                <div class="menu-item-icon">📥</div>
+                <div class="menu-item-text">
+                    <div class="menu-item-title">导入数据</div>
+                    <div class="menu-item-desc">恢复之前的备份</div>
+                </div>
+            </div>
+
+            <div class="menu-item" onclick="changeUserName()">
+                <div class="menu-item-icon">👤</div>
+                <div class="menu-item-text">
+                    <div class="menu-item-title">修改昵称</div>
+                    <div class="menu-item-desc">更改你的显示名称</div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="closeModal('menuModal')" type="button" style="width: 100%; margin-top: 20px;">
+                关闭
+            </button>
+        </div>
+    </div>
+
+    <input type="file" id="importFile" accept=".json" style="display: none;">
+
+    <script>
+        // 数据存储
+        let userData = {
+            name: '',
+            currentStage: 1,
+            checkIns: {}
+        };
+
+        let currentDate = new Date();
+        let selectedStage = 1;
+        let currentCheckInDate = '';
+
+        // 阶段信息
+        const stageInfo = {
+            1: {
+                icon: '🚶‍♀️',
+                title: '第一阶段：以"动起来"为目标',
+                desc: '核心是走路——最无痛、最简单的减脂运动'
+            },
+            2: {
+                icon: '🏃‍♀️',
+                title: '第二阶段：燃脂 + 提高心肺',
+                desc: '低强度有氧，Zone 2运动（有点喘但还能说话）'
+            },
+            3: {
+                icon: '💪',
+                title: '第三阶段：力量为主，有氧为辅',
+                desc: '居家力量训练（壶铃、哑铃）'
+            },
+            4: {
+                icon: '🔥',
+                title: '第四阶段：上重量 + HIIT',
+                desc: '增肌、突破肌肉耐力'
+            }
+        };
+
+        // 初始化
+        function init() {
+            try {
+                loadData();
+                if (!userData.name) {
+                    setTimeout(function() {
+                        openModal('welcomeModal');
+                    }, 100);
+                } else {
+                    updateUI();
+                    renderCalendar();
+                }
+            } catch (error) {
+                console.error('初始化错误:', error);
+                alert('页面加载出错，请刷新重试');
+            }
+        }
+
+        // 数据持久化
+        function saveData() {
+            try {
+                const dataStr = JSON.stringify(userData);
+                localStorage.setItem('exerciseTrackerData', dataStr);
+            } catch (error) {
+                console.error('保存失败:', error);
+            }
+        }
+
+        function loadData() {
+            try {
+                const stored = localStorage.getItem('exerciseTrackerData');
+                if (stored) {
+                    userData = JSON.parse(stored);
+                }
+            } catch (error) {
+                console.error('加载失败:', error);
+            }
+        }
+
+        // UI更新
+        function updateUI() {
+            try {
+                document.getElementById('userInfo').textContent = userData.name || '欢迎使用';
+                const stage = stageInfo[userData.currentStage];
+                document.getElementById('stageInfo').innerHTML = 
+                    '<h3>' + stage.icon + ' ' + stage.title + '</h3>' +
+                    '<p>' + stage.desc + '</p>';
+                updateStats();
+            } catch (error) {
+                console.error('UI更新错误:', error);
+            }
+        }
+
+        // 提交用户名
+        function submitUserName() {
+            try {
+                const name = document.getElementById('userName').value.trim();
+                if (!name) {
+                    alert('请输入昵称');
+                    return;
+                }
+                userData.name = name;
+                closeModal('welcomeModal');
+                setTimeout(function() {
+                    openModal('stageModal');
+                }, 300);
+            } catch (error) {
+                console.error('提交错误:', error);
+            }
+        }
+
+        // 选择阶段
+        function selectStage(stage) {
+            try {
+                selectedStage = stage;
+                const options = document.querySelectorAll('.stage-option');
+                options.forEach(function(el) {
+                    el.classList.remove('selected');
+                });
+                const selected = document.querySelector('.stage-option[data-stage="' + stage + '"]');
+                if (selected) {
+                    selected.classList.add('selected');
+                }
+            } catch (error) {
+                console.error('选择阶段错误:', error);
+            }
+        }
+
+        // 确认阶段
+        function confirmStage() {
+            try {
+                if (!selectedStage) {
+                    alert('请选择一个阶段');
+                    return;
+                }
+                userData.currentStage = selectedStage;
+                saveData();
+                updateUI();
+                closeModal('stageModal');
+                renderCalendar();
+            } catch (error) {
+                console.error('确认阶段错误:', error);
+            }
+        }
+
+        // 渲染日历
+        function renderCalendar() {
+            try {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                
+                document.getElementById('currentMonth').textContent = year + '年' + (month + 1) + '月';
+                
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const daysInPrevMonth = new Date(year, month, 0).getDate();
+                
+                const calendarDays = document.getElementById('calendarDays');
+                calendarDays.innerHTML = '';
+                
+                const today = new Date();
+                const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+                
+                // 上个月的日期
+                for (let i = firstDay - 1; i >= 0; i--) {
+                    const day = daysInPrevMonth - i;
+                    const dayEl = createDayElement(day, true, year, month - 1);
+                    calendarDays.appendChild(dayEl);
+                }
+                
+                // 当前月的日期
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const isToday = isCurrentMonth && day === today.getDate();
+                    const dayEl = createDayElement(day, false, year, month, isToday);
+                    calendarDays.appendChild(dayEl);
+                }
+                
+                // 下个月的日期
+                const totalCells = calendarDays.children.length;
+                const remainingCells = 42 - totalCells;
+                for (let day = 1; day <= remainingCells; day++) {
+                    const dayEl = createDayElement(day, true, year, month + 1);
+                    calendarDays.appendChild(dayEl);
+                }
+            } catch (error) {
+                console.error('渲染日历错误:', error);
+            }
+        }
+
+        function createDayElement(day, isOtherMonth, year, month, isToday) {
+            const div = document.createElement('div');
+            div.className = 'day';
+            if (isOtherMonth) div.classList.add('other-month');
+            if (isToday) div.classList.add('today');
+            
+            const dateKey = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            const checkIn = userData.checkIns[dateKey];
+            
+            if (checkIn) {
+                div.classList.add('checked');
+                const stageIcons = ['🚶‍♀️', '🏃‍♀️', '💪', '🔥'];
+                const stageIcon = stageIcons[checkIn.stage - 1] || '✓';
+                div.innerHTML = 
+                    '<span class="day-number">' + day + '</span>' +
+                    '<span class="day-icon">' + stageIcon + '</span>' +
+                    '<div class="day-note">' + (checkIn.note || '') + '</div>';
+            } else {
+                div.innerHTML = '<span class="day-number">' + day + '</span>';
+            }
+            
+            if (!isOtherMonth) {
+                div.onclick = function() {
+                    openCheckIn(dateKey);
+                };
+            }
+            
+            return div;
+        }
+
+        // 打开打卡弹窗
+        function openCheckIn(dateKey) {
+            try {
+                currentCheckInDate = dateKey;
+                const checkIn = userData.checkIns[dateKey];
+                
+                document.getElementById('checkInDate').textContent = dateKey;
+                document.getElementById('checkInNote').value = checkIn ? (checkIn.note || '') : '';
+                document.getElementById('deleteBtn').style.display = checkIn ? 'block' : 'none';
+                
+                openModal('checkInModal');
+            } catch (error) {
+                console.error('打开打卡弹窗错误:', error);
+            }
+        }
+
+        // 保存打卡
+        function saveCheckIn() {
+            try {
+                const note = document.getElementById('checkInNote').value.trim();
+                
+                userData.checkIns[currentCheckInDate] = {
+                    stage: userData.currentStage,
+                    note: note,
+                    timestamp: new Date().toISOString()
+                };
+                
+                saveData();
+                renderCalendar();
+                closeModal('checkInModal');
+            } catch (error) {
+                console.error('保存打卡错误:', error);
+                alert('保存失败，请重试');
+            }
+        }
+
+        // 删除打卡
+        function deleteCheckIn() {
+            try {
+                if (!confirm('确定要删除这条打卡记录吗？')) return;
+                
+                delete userData.checkIns[currentCheckInDate];
+                saveData();
+                renderCalendar();
+                closeModal('checkInModal');
+            } catch (error) {
+                console.error('删除打卡错误:', error);
+            }
+        }
+
+        // 更新统计
+        function updateStats() {
+            try {
+                const stats = { 1: 0, 2: 0, 3: 0, 4: 0 };
+                const keys = Object.keys(userData.checkIns);
+                for (let i = 0; i < keys.length; i++) {
+                    const checkIn = userData.checkIns[keys[i]];
+                    if (checkIn && checkIn.stage) {
+                        stats[checkIn.stage]++;
+                    }
+                }
+                
+                document.getElementById('stage1Count').textContent = stats[1];
+                document.getElementById('stage2Count').textContent = stats[2];
+                document.getElementById('stage3Count').textContent = stats[3];
+                document.getElementById('stage4Count').textContent = stats[4];
+            } catch (error) {
+                console.error('更新统计错误:', error);
+            }
+        }
+
+        // 切换月份
+        function changeMonth(delta) {
+            try {
+                currentDate.setMonth(currentDate.getMonth() + delta);
+                renderCalendar();
+            } catch (error) {
+                console.error('切换月份错误:', error);
+            }
+        }
+
+        // 弹窗控制
+        function openModal(modalId) {
+            try {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.add('active');
+                }
+            } catch (error) {
+                console.error('打开弹窗错误:', error);
+            }
+        }
+
+        function closeModal(modalId) {
+            try {
+                const modal = document.getElementById(modalId);
+                if (modal) {
+                    modal.classList.remove('active');
+                }
+            } catch (error) {
+                console.error('关闭弹窗错误:', error);
+            }
+        }
+
+        // 菜单功能
+        function openMenu() {
+            openModal('menuModal');
+        }
+
+        function openStageChange() {
+            closeModal('menuModal');
+            selectedStage = userData.currentStage;
+            selectStage(selectedStage);
+            setTimeout(function() {
+                openModal('stageModal');
+            }, 300);
+        }
+
+        function changeUserName() {
+            try {
+                const newName = prompt('请输入新的昵称：', userData.name);
+                if (newName && newName.trim()) {
+                    userData.name = newName.trim();
+                    saveData();
+                    updateUI();
+                }
+                closeModal('menuModal');
+            } catch (error) {
+                console.error('修改昵称错误:', error);
+            }
+        }
+
+        // 导出数据
+        function exportData() {
+            try {
+                const dataStr = JSON.stringify(userData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '运动打卡备份_' + new Date().toISOString().slice(0, 10) + '.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                closeModal('menuModal');
+                alert('备份文件已下载！');
+            } catch (error) {
+                console.error('导出错误:', error);
+                alert('导出失败，请重试');
+            }
+        }
+
+        // 导入数据
+        function importData() {
+            try {
+                const fileInput = document.getElementById('importFile');
+                fileInput.onchange = function(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        try {
+                            const imported = JSON.parse(e.target.result);
+                            if (confirm('导入数据将覆盖当前所有数据，确定继续吗？')) {
+                                userData = imported;
+                                saveData();
+                                updateUI();
+                                renderCalendar();
+                                alert('数据导入成功！');
+                            }
+                        } catch (error) {
+                            alert('文件格式错误！');
+                        }
+                        closeModal('menuModal');
+                    };
+                    reader.readAsText(file);
+                    fileInput.value = '';
+                };
+                fileInput.click();
+            } catch (error) {
+                console.error('导入错误:', error);
+            }
+        }
+
+        // 页面加载时初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+
+        // 数据保护
+        window.addEventListener('beforeunload', function() {
+            saveData();
+        });
+
+        window.addEventListener('pagehide', function() {
+            saveData();
+        });
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                saveData();
+            }
+        });
+    </script>
+</body>
+</html>
