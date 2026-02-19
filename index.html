@@ -421,14 +421,12 @@ function calendarCard(today, isCurMonth){
         if(future) cls += ' future';
         const bg = checked ? `background:${rph.grad};` : '';
         const clickAttr = future ? '' : `onclick="clickDay(${d})"`;
-        // ── 日期统一左上角，用 cal-day-num ──
         cells += `<button class="${cls}" style="${bg}" ${clickAttr}>
             <span class="cal-day-num">${d}</span>
             ${checked?`<span class="cal-icon">${rph.icon}</span>`:''}
             ${note?`<span class="cal-note">${esc(note)}</span>`:''}
         </button>`;
     }
-    // ── 日历卡片全宽，抵消 page 的 12px 左右内边距 ──
     return `<div class="card" style="margin-left:-12px;margin-right:-12px;padding:16px 8px;">
         <div class="row-sb mb12">
             <button class="btn btn-ghost" style="padding:8px 14px;font-size:18px;" onclick="prevMonth()">‹</button>
@@ -571,7 +569,7 @@ function noteModal(){
             <textarea id="noteTA" class="inp mb12" placeholder="记录今天的运动内容（可选）...
 
 例如：走路8000步 / 超慢跑30分钟
-感觉很棒！" oninput="st.currentNote=this.value"></textarea>
+感觉很棒！"></textarea>
             <div class="row gap8">
                 <button class="btn btn-primary" style="flex:1;" onclick="saveNote()">✅ 完成打卡</button>
                 ${isChecked?`<button class="btn btn-danger" onclick="askDelete()">删除</button>`:''}
@@ -617,11 +615,15 @@ function clickDay(d){
     st.currentNote = st.notes[key] || '';
     render();
 }
+
+// ── 修复：直接从 DOM 读取 textarea 内容，不依赖 oninput ──
 function saveNote(){
     if(!st.selectedDate) return;
     const key = st.selectedDate;
-    if(st.currentNote.trim()){
-        st.notes[key] = st.currentNote.trim();
+    const ta = document.getElementById('noteTA');
+    const noteText = ta ? ta.value.trim() : st.currentNote.trim();
+    if(noteText){
+        st.notes[key] = noteText;
     } else {
         delete st.notes[key];
     }
@@ -631,6 +633,7 @@ function saveNote(){
     render();
     persist();
 }
+
 function cancelNote(){ st.selectedDate=null; st.currentNote=''; render(); }
 function askDelete(){ showConfirm('确定要删除这天的记录吗？', doDelete); }
 function doDelete(){
