@@ -29,11 +29,8 @@
         .sheet-hdr { position: sticky; top: 0; background: white; border-bottom: 1px solid #f3f4f6; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 1; }
         .sheet-body { padding: 16px; }
         .popup { background: white; border-radius: 24px; width: 100%; max-width: 400px; padding: 24px; }
-
-        /* ── 日历 ── */
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .cal-hd { text-align: center; font-size: 11px; font-weight: 700; color: #6b7280; padding: 4px 0; }
-        .cal-empty { /* grid 自动处理尺寸 */ }
         .cal-day {
             position: relative; width: 100%; aspect-ratio: 2/3;
             border-radius: 12px; overflow: hidden;
@@ -45,22 +42,15 @@
         .cal-day:active { transform: scale(0.88); }
         .cal-day.checked { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
         .cal-day.today-ring { outline: 2px solid #a855f7; outline-offset: 1px; }
-        /* ── 未来日期置灰不可点 ── */
         .cal-day.future { opacity: 0.28; cursor: default; pointer-events: none; }
-        /* ── 日期固定左上角 ── */
-        .cal-day-num {
-            position: absolute; top: 5px; left: 6px;
-            font-size: 13px; font-weight: 700; line-height: 1; z-index: 1;
-        }
+        .cal-day-num { position: absolute; top: 5px; left: 6px; font-size: 13px; font-weight: 700; line-height: 1; z-index: 1; }
         .cal-icon { position: absolute; top: 2px; right: 3px; font-size: 12px; line-height: 1; }
-        /* ── 日记占满下方区域，更多行 ── */
         .cal-note {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: rgba(0,0,0,0.45);
             padding: 3px 4px; font-size: 8px; line-height: 1.4; color: white;
             overflow: hidden; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; word-break: break-all;
         }
-
         .btn { border-radius: 12px; font-weight: 700; transition: transform 0.1s; cursor: pointer; }
         .btn:active { transform: scale(0.95); }
         .btn-primary { background: linear-gradient(135deg, #a855f7, #ec4899); color: white; padding: 13px 16px; font-size: 15px; width: 100%; border-radius: 12px; font-weight: 700; }
@@ -86,12 +76,10 @@
         .tip-box { padding: 12px; border-radius: 16px; background: linear-gradient(135deg,#f5f3ff,#fdf2f8); border: 2px solid #e9d5ff; }
         .warn-box { padding: 12px; border-radius: 16px; background: #fffbeb; border: 2px solid #fde68a; }
         .info-box { padding: 12px; border-radius: 16px; background: #eff6ff; border: 2px solid #bfdbfe; }
-        /* ── 日签卡片 ── */
-        .quote-box {
-            background: linear-gradient(135deg, #f5f3ff, #fdf2f8);
-            border-radius: 14px; padding: 10px 16px; margin-top: 10px;
-            border: 1px solid #ddd6fe; text-align: center;
-        }
+        .quote-box { background: linear-gradient(135deg, #f5f3ff, #fdf2f8); border-radius: 14px; padding: 10px 16px; margin-top: 10px; border: 1px solid #ddd6fe; text-align: center; }
+        /* 保存提示 toast */
+        #toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: #22c55e; color: white; padding: 10px 22px; border-radius: 99px; font-size: 14px; font-weight: 700; opacity: 0; transition: all 0.3s; z-index: 999; pointer-events: none; }
+        #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     </style>
 </head>
 <body>
@@ -103,6 +91,7 @@
         </div>
     </div>
 </div>
+<div id="toast">✅ 已保存</div>
 
 <script>
 // ─────────────────────────────────────────
@@ -141,7 +130,6 @@ const QUOTES = [
     {emoji:"🌱", text:"每天一点点，积累大大的改变"},
     {emoji:"😊", text:"运动的快乐，只有动过才懂得"}
 ];
-
 function getDailyQuote() {
     const t = new Date();
     const seed = t.getFullYear() * 10000 + (t.getMonth()+1) * 100 + t.getDate();
@@ -215,67 +203,92 @@ const st = {
 };
 
 // ─────────────────────────────────────────
-// STORAGE
+// STORAGE — 核心修复：save 改为同步写 LS，IDB 异步不等待
 // ─────────────────────────────────────────
 const Store = {
-    toLS(k,v){ try{ localStorage.setItem(k,JSON.stringify(v));return true; }catch(e){return false;} },
-    fromLS(k){ try{ const d=localStorage.getItem(k);return d?JSON.parse(d):null; }catch(e){return null;} },
+    // ── 同步写 localStorage ──
+    toLS(k,v){
+        try{ localStorage.setItem(k, JSON.stringify(v)); return true; }
+        catch(e){ return false; }
+    },
+    fromLS(k){
+        try{
+            const d = localStorage.getItem(k);
+            if(d === null || d === undefined) return null;
+            const parsed = JSON.parse(d);
+            return parsed;
+        }catch(e){ return null; }
+    },
+    // ── Cookie 备份 ──
     toCk(k,v){
         try{
-            const enc=btoa(unescape(encodeURIComponent(JSON.stringify(v))));
-            document.cookie=`${k}=${enc}; max-age=${365*86400}; path=/; SameSite=Lax`;
+            const s = JSON.stringify(v);
+            // cookie 限 4KB，超出则跳过
+            if(s.length > 3000) return false;
+            const enc = btoa(unescape(encodeURIComponent(s)));
+            document.cookie = `${k}=${enc}; max-age=${365*86400}; path=/; SameSite=Lax`;
             return true;
-        }catch(e){return false;}
+        }catch(e){ return false; }
     },
     fromCk(k){
         try{
             for(const c of document.cookie.split(';')){
-                const i=c.indexOf('='); if(i<0)continue;
-                const n=c.slice(0,i).trim(), val=c.slice(i+1).trim();
+                const i = c.indexOf('='); if(i<0) continue;
+                const n = c.slice(0,i).trim(), val = c.slice(i+1).trim();
                 if(n===k) return JSON.parse(decodeURIComponent(escape(atob(val))));
             }
             return null;
-        }catch(e){return null;}
+        }catch(e){ return null; }
     },
+    // ── IndexedDB 备份（fire-and-forget，不阻塞） ──
     toIDB(k,v){
-        return new Promise(res=>{
-            try{
-                const rq=indexedDB.open('ExDB',1);
-                rq.onerror=()=>res(false);
-                rq.onupgradeneeded=e=>{
-                    if(!e.target.result.objectStoreNames.contains('data'))
-                        e.target.result.createObjectStore('data',{keyPath:'key'});
-                };
-                rq.onsuccess=e=>{
-                    const db=e.target.result;
-                    const tx=db.transaction(['data'],'readwrite');
-                    tx.objectStore('data').put({key:k,value:v});
-                    tx.oncomplete=()=>{db.close();res(true);};
-                    tx.onerror=()=>{db.close();res(false);};
-                };
-            }catch(e){res(false);}
-        });
+        try{
+            const rq = indexedDB.open('ExDB',1);
+            rq.onupgradeneeded = e => {
+                if(!e.target.result.objectStoreNames.contains('data'))
+                    e.target.result.createObjectStore('data',{keyPath:'key'});
+            };
+            rq.onsuccess = e => {
+                try{
+                    const db = e.target.result;
+                    const tx = db.transaction(['data'],'readwrite');
+                    tx.objectStore('data').put({key:k, value:v});
+                    tx.oncomplete = () => db.close();
+                    tx.onerror = () => db.close();
+                }catch(e2){}
+            };
+        }catch(e){}
     },
     fromIDB(k){
-        return new Promise(res=>{
+        return new Promise(res => {
+            const timer = setTimeout(() => res(null), 2000); // 2秒超时
             try{
-                const rq=indexedDB.open('ExDB',1);
-                rq.onerror=()=>res(null);
-                rq.onsuccess=e=>{
-                    const db=e.target.result;
-                    if(!db.objectStoreNames.contains('data')){db.close();res(null);return;}
-                    const tx=db.transaction(['data'],'readonly');
-                    const gr=tx.objectStore('data').get(k);
-                    gr.onsuccess=()=>{db.close();res(gr.result?gr.result.value:null);};
-                    gr.onerror=()=>{db.close();res(null);};
+                const rq = indexedDB.open('ExDB',1);
+                rq.onerror = () => { clearTimeout(timer); res(null); };
+                rq.onsuccess = e => {
+                    try{
+                        const db = e.target.result;
+                        if(!db.objectStoreNames.contains('data')){ clearTimeout(timer); db.close(); res(null); return; }
+                        const tx = db.transaction(['data'],'readonly');
+                        const gr = tx.objectStore('data').get(k);
+                        gr.onsuccess = () => { clearTimeout(timer); db.close(); res(gr.result ? gr.result.value : null); };
+                        gr.onerror = () => { clearTimeout(timer); db.close(); res(null); };
+                    }catch(e2){ clearTimeout(timer); res(null); }
                 };
-            }catch(e){res(null);}
+            }catch(e){ clearTimeout(timer); res(null); }
         });
     },
-    async save(k,v){ this.toLS(k,v); this.toCk(k,v); await this.toIDB(k,v); },
+    // ══ 核心修复：同步保存 LS + Cookie，IDB 异步不等待 ══
+    save(k,v){
+        this.toLS(k,v);   // 立即同步写入 localStorage ✅
+        this.toCk(k,v);   // 同步写入 Cookie
+        this.toIDB(k,v);  // 异步写入 IDB，fire-and-forget
+    },
     async load(k){
-        const a=this.fromLS(k); if(a!==null) return a;
-        const b=this.fromCk(k); if(b!==null) return b;
+        const a = this.fromLS(k);
+        if(a !== null) return a;
+        const b = this.fromCk(k);
+        if(b !== null) return b;
         return await this.fromIDB(k);
     }
 };
@@ -294,17 +307,27 @@ function phaseStats(){
 function dk(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
 function daysIn(y,m){ return new Date(y,m+1,0).getDate(); }
 function firstDay(y,m){ return new Date(y,m,1).getDay(); }
-async function persist(){
-    await Store.save('exerciseRecords',st.records);
-    await Store.save('exerciseNotes',st.notes);
+
+// ══ 核心修复：persist 改为同步，不再 async await ══
+function persist(){
+    Store.save('exerciseRecords', st.records);
+    Store.save('exerciseNotes', st.notes);
 }
+
+function showToast(msg){
+    const t = document.getElementById('toast');
+    if(!t) return;
+    t.textContent = msg || '✅ 已保存';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+}
+
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-function isFutureDate(y, m, d) {
+function isFutureDate(y,m,d){
     const today = new Date();
-    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const target = new Date(y, m, d);
-    return target > todayMidnight;
+    const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return new Date(y,m,d) > todayMid;
 }
 
 // ─────────────────────────────────────────
@@ -325,7 +348,6 @@ function buildPage(){
     const total = ps[1]+ps[2]+ps[3]+ps[4];
     const cp = st.currentPhase;
     const ph = PHASES[cp-1];
-
     return `<div class="page">
 ${headerCard(ph, ps[cp], today)}
 ${statsCard(ps, total)}
@@ -378,8 +400,7 @@ function headerCard(ph, cpDays, today){
 
 function statsCard(ps, total){
     const q = getDailyQuote();
-    const todayStr = new Date().toLocaleDateString('zh-CN', {month:'long', day:'numeric', weekday:'long'});
-
+    const todayStr = new Date().toLocaleDateString('zh-CN',{month:'long',day:'numeric',weekday:'long'});
     return `<div class="card">
         <div style="text-align:center;margin-bottom:16px;">
             <p style="color:#9ca3af;font-size:12px;margin-bottom:4px;">累计运动</p>
@@ -405,7 +426,7 @@ function calendarCard(today, isCurMonth){
     const days = daysIn(st.year, st.month);
     const fd = firstDay(st.year, st.month);
     let cells = '';
-    for(let i=0;i<fd;i++) cells += `<div class="cal-empty"></div>`;
+    for(let i=0;i<fd;i++) cells += `<div></div>`;
     for(let d=1;d<=days;d++){
         const key = dk(st.year, st.month, d);
         const rec = st.records[key];
@@ -420,8 +441,7 @@ function calendarCard(today, isCurMonth){
         if(isToday && !checked) cls += ' today-ring';
         if(future) cls += ' future';
         const bg = checked ? `background:${rph.grad};` : '';
-        const clickAttr = future ? '' : `onclick="clickDay(${d})"`;
-        cells += `<button class="${cls}" style="${bg}" ${clickAttr}>
+        cells += `<button class="${cls}" style="${bg}" ${future?'':'onclick="clickDay('+d+')"'}>
             <span class="cal-day-num">${d}</span>
             ${checked?`<span class="cal-icon">${rph.icon}</span>`:''}
             ${note?`<span class="cal-note">${esc(note)}</span>`:''}
@@ -616,22 +636,29 @@ function clickDay(d){
     render();
 }
 
-// ── 修复：直接从 DOM 读取 textarea 内容，不依赖 oninput ──
+// ══ 核心修复：直接读 DOM textarea，立即同步保存 ══
 function saveNote(){
     if(!st.selectedDate) return;
     const key = st.selectedDate;
     const ta = document.getElementById('noteTA');
-    const noteText = ta ? ta.value.trim() : st.currentNote.trim();
+    const noteText = ta ? ta.value.trim() : '';
+
+    // 1. 先更新内存状态
     if(noteText){
         st.notes[key] = noteText;
     } else {
         delete st.notes[key];
     }
     st.records[key] = { phase: st.currentPhase };
+
+    // 2. 立即同步保存（在 render 之前）
+    persist();
+
+    // 3. 更新 UI
     st.selectedDate = null;
     st.currentNote = '';
     render();
-    persist();
+    showToast('✅ 打卡成功，已保存！');
 }
 
 function cancelNote(){ st.selectedDate=null; st.currentNote=''; render(); }
@@ -640,10 +667,11 @@ function doDelete(){
     if(!st.selectedDate) return;
     delete st.records[st.selectedDate];
     delete st.notes[st.selectedDate];
+    persist();
     st.selectedDate = null;
     st.currentNote = '';
     render();
-    persist();
+    showToast('🗑️ 已删除');
 }
 function prevMonth(){
     if(st.month===0){ st.month=11; st.year--; } else st.month--;
@@ -665,20 +693,24 @@ function closePhaseSelector(){ st.showPhaseSelector=false; render(); }
 function selectPhase(id){
     st.currentPhase=id;
     st.showPhaseSelector=false;
-    render();
     Store.save('currentPhase',id);
+    render();
 }
 function changePhase(id){
     st.currentPhase=id;
     st.showMenu=false;
-    render();
     Store.save('currentPhase',id);
+    render();
 }
 function showConfirm(msg, cb){ st.confirmMsg=msg; st.confirmCb=cb; render(); }
 function confirmYes(){ if(st.confirmCb) st.confirmCb(); st.confirmMsg=''; st.confirmCb=null; render(); }
 function confirmNo(){ st.confirmMsg=''; st.confirmCb=null; render(); }
 function exportData(){
-    const data = JSON.stringify({ records:st.records, notes:st.notes, userName:st.userName, currentPhase:st.currentPhase, exportDate:new Date().toISOString() }, null, 2);
+    const data = JSON.stringify({
+        records:st.records, notes:st.notes,
+        userName:st.userName, currentPhase:st.currentPhase,
+        exportDate:new Date().toISOString()
+    }, null, 2);
     try {
         const blob = new Blob([data],{type:'application/json'});
         const url = URL.createObjectURL(blob);
@@ -686,14 +718,10 @@ function exportData(){
         a.href=url; a.download=`${st.userName||'打卡'}_运动记录_${new Date().toISOString().slice(0,10)}.json`;
         document.body.appendChild(a); a.click(); document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        st.exportData = data;
-        st.showMenu = false;
-        render();
-    } catch(e) {
-        st.exportData = data;
-        st.showMenu = false;
-        render();
-    }
+    } catch(e) {}
+    st.exportData = data;
+    st.showMenu = false;
+    render();
 }
 function closeExport(){ st.exportData=null; render(); }
 function copyExport(){
@@ -701,30 +729,30 @@ function copyExport(){
     if(!ta) return;
     try {
         if(navigator.clipboard){
-            navigator.clipboard.writeText(ta.value).then(()=>alert('✅ 已复制！'));
+            navigator.clipboard.writeText(ta.value).then(()=>showToast('📋 已复制！'));
         } else {
-            ta.select(); document.execCommand('copy'); alert('✅ 已复制！');
+            ta.select(); document.execCommand('copy'); showToast('📋 已复制！');
         }
-    } catch(e){ ta.select(); document.execCommand('copy'); }
+    } catch(e){ try{ ta.select(); document.execCommand('copy'); showToast('📋 已复制！'); }catch(e2){} }
 }
 function importData(e){
     const file = e.target.files&&e.target.files[0];
     if(!file) return;
     const reader = new FileReader();
-    reader.onload = async ev => {
+    reader.onload = ev => {
         try{
             const data = JSON.parse(ev.target.result);
-            showConfirm('导入将覆盖当前数据，确定吗？', async ()=>{
+            showConfirm('导入将覆盖当前数据，确定吗？', ()=>{
                 st.records = data.records||{};
                 st.notes = data.notes||{};
                 if(data.userName) st.userName=data.userName;
                 if(data.currentPhase) st.currentPhase=data.currentPhase;
+                persist();
+                Store.save('userName',st.userName);
+                Store.save('currentPhase',st.currentPhase);
                 st.showMenu=false;
                 render();
-                await persist();
-                await Store.save('userName',st.userName);
-                await Store.save('currentPhase',st.currentPhase);
-                alert('✅ 数据导入成功！');
+                showToast('✅ 导入成功！');
             });
         } catch(err){ alert('❌ 文件格式错误'); }
     };
@@ -755,10 +783,11 @@ function saveUserName(){
         ]);
         if(name) st.userName=name; else st.showNameInput=true;
         const pNum = parseInt(phase);
-        if(pNum>=1&&pNum<=4) st.currentPhase=pNum; else if(!name) st.showPhaseSelector=true;
+        if(pNum>=1&&pNum<=4) st.currentPhase=pNum;
+        else if(!name) st.showPhaseSelector=true;
         if(!name&&pNum>=1&&pNum<=4) st.showPhaseSelector=true;
-        if(records) st.records=records;
-        if(notes) st.notes=notes;
+        if(records && typeof records==='object') st.records=records;
+        if(notes && typeof notes==='object') st.notes=notes;
         const now = new Date();
         st.year = now.getFullYear();
         st.month = now.getMonth();
