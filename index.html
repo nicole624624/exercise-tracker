@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>苹果型身材运动打卡记录</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: linear-gradient(135deg, #fce4ec 0%, #f3e5f5 50%, #e3f2fd 100%);
+            min-height: 100vh;
+            overscroll-behavior: none;
+        }
+        button, input, textarea { font-family: inherit; -webkit-appearance: none; appearance: none; border: none; background: none; }
+        button { cursor: pointer; }
+        .grad-text {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .page { max-width: 600px; margin: 0 auto; padding: 12px 12px 80px; }
+        .card { background: white; border-radius: 24px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+        /* Overlays */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+        .overlay.center { align-items: center; padding: 16px; }
+        .sheet { background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .sheet-hdr { position: sticky; top: 0; background: white; border-bottom: 1px solid #f3f4f6; padding: 14px 16px; display: flex; justify-content: space-between; align-items: center; z-index: 1; }
+        .sheet-body { padding: 16px; }
+        .popup { background: white; border-radius: 24px; width: 100%; max-width: 400px; padding: 24px; }
+        /* Calendar */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+        .cal-hd { text-align: center; font-size: 11px; font-weight: 700; color: #6b7280; padding: 4px 0; }
+        .cal-empty { aspect-ratio: 1; }
+        .cal-day {
+            position: relative; width: 100%; aspect-ratio: 1; border-radius: 9px; overflow: hidden;
+            border: none; cursor: pointer; padding: 3px; touch-action: manipulation; -webkit-user-select: none;
+            text-align: left; display: block; background: #f3f4f6; color: #374151;
+            font-size: 11px; font-weight: 700; transition: transform 0.1s;
+        }
+        .cal-day:active { transform: scale(0.88); }
+        .cal-day.checked { color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.18); }
+        .cal-day.today-ring { outline: 2px solid #a855f7; outline-offset: 1px; }
+        .cal-icon { position: absolute; top: 1px; right: 2px; font-size: 12px; line-height: 1; }
+        .cal-note {
+            position: absolute; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.25);
+            padding: 2px 3px; font-size: 8px; line-height: 1.2; color: white;
+            overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; word-break: break-all;
+        }
+        /* Buttons */
+        .btn { border-radius: 12px; font-weight: 700; transition: transform 0.1s; cursor: pointer; }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background: linear-gradient(135deg, #a855f7, #ec4899); color: white; padding: 13px 16px; font-size: 15px; width: 100%; border-radius: 12px; font-weight: 700; }
+        .btn-ghost { background: #f3f4f6; color: #374151; padding: 10px 14px; font-size: 14px; border-radius: 10px; font-weight: 700; }
+        .btn-danger { background: #ef4444; color: white; padding: 10px 14px; font-size: 14px; border-radius: 10px; font-weight: 700; }
+        .btn-white-trans { background: rgba(255,255,255,0.22); color: white; padding: 9px 11px; border-radius: 10px; font-size: 18px; line-height: 1; }
+        .btn-green { background: linear-gradient(135deg, #22c55e, #10b981); color: white; padding: 13px 16px; font-size: 14px; width: 100%; border-radius: 12px; font-weight: 700; }
+        .btn-blue { background: linear-gradient(135deg, #3b82f6, #06b6d4); color: white; padding: 13px 16px; font-size: 14px; width: 100%; border-radius: 12px; font-weight: 700; }
+        /* Input */
+        .inp { border: 2px solid #c4b5fd; border-radius: 12px; padding: 12px; font-size: 15px; width: 100%; outline: none; background: white; }
+        .inp:focus { border-color: #a855f7; }
+        textarea.inp { resize: none; height: 128px; }
+        /* Stats grid */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        .stat-cell { border-radius: 16px; padding: 10px 6px; text-align: center; }
+        /* Phase card */
+        .phase-opt { width: 100%; text-align: left; padding: 12px; border-radius: 16px; border: 2px solid #e5e7eb; background: white; cursor: pointer; display: flex; align-items: flex-start; gap: 12px; transition: transform 0.1s; }
+        .phase-opt:active { transform: scale(0.98); }
+        /* Loading */
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+        .pulse { animation: pulse 1.5s infinite; }
+        /* Flex utils */
+        .row { display: flex; align-items: center; }
+        .row-sb { display: flex; align-items: center; justify-content: space-between; }
+        .gap8 { gap: 8px; }
+        .gap12 { gap: 12px; }
+        .mt8 { margin-top: 8px; }
+        .mt12 { margin-top: 12px; }
+        .mt16 { margin-top: 16px; }
+        .mb4 { margin-bottom: 4px; }
+        .mb8 { margin-bottom: 8px; }
+        .mb12 { margin-bottom: 12px; }
+        .mb16 { margin-bottom: 16px; }
+        .tip-box { padding: 12px; border-radius: 16px; background: linear-gradient(135deg,#f5f3ff,#fdf2f8); border: 2px solid #e9d5ff; }
+        .warn-box { padding: 12px; border-radius: 16px; background: #fffbeb; border: 2px solid #fde68a; }
+        .info-box { padding: 12px; border-radius: 16px; background: #eff6ff; border: 2px solid #bfdbfe; }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;">
+        <div>
+            <div class="pulse" style="font-size:64px;margin-bottom:16px;">🏃‍♀️</div>
+            <p class="grad-text" style="font-size:20px;font-weight:bold;">加载中...</p>
+        </div>
+    </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// PHASE DATA
+// ─────────────────────────────────────────
+const PHASES = [
+    {
+        id:1, icon:'🚶‍♀️',
+        name:'第一阶段：以"动起来"为目标',
+        subtitle:'不让自己受罪，欺骗大脑和身体',
+        core:'最推荐走路——最无痛、最简单的减脂运动',
+        desc:'走路不刺激压力激素，还能减少内脏脂肪、提高胰岛素敏感度',
+        goals:['先从每天4000步开始','然后6000步','最后到一万步以上'],
+        tips:['下班提前两站下车走回家','走路去上班','在家没事就出去逛逛','等哪天你发现，诶，今天没走路，浑身不舒服——恭喜你，可以进第二阶段了'],
+        grad:'linear-gradient(135deg,#22d3ee,#3b82f6)',
+        lightBg:'#e0f7fa', textColor:'#0277bd', borderColor:'#22d3ee'
+    },
+    {
+        id:2, icon:'🏃‍♀️',
+        name:'第二阶段：燃脂 + 提高心肺',
+        subtitle:'中低强度有氧 Zone 2 运动',
+        core:'Zone 2 = 有点喘但还能说话，不能唱歌',
+        desc:'这个强度燃脂效率最高',
+        goals:['一周5到6次 Zone 2 有氧','一周两次力量动作学习（空手、不上重量）','学习深蹲、硬拉怎么发力'],
+        tips:['推荐运动：超慢跑、爬坡、快走、不跑不跳的燃脂操','爬坡效率比跑步机跑步还高','这个阶段大概一个月，配合饮食体重会掉一些','有了正反馈，你就愿意尝试更多挑战了'],
+        grad:'linear-gradient(135deg,#4ade80,#10b981)',
+        lightBg:'#e8f5e9', textColor:'#2e7d32', borderColor:'#4ade80'
+    },
+    {
+        id:3, icon:'💪',
+        name:'第三阶段：力量为主，有氧为辅',
+        subtitle:'维持体重、塑形的长期阶段',
+        core:'力量训练提高代谢、持续燃脂、减少肝脏脂肪',
+        desc:'从壶铃、哑铃居家锻炼开始，网上有很多跟练视频',
+        goals:['一周4到5次力量训练','一周两次 Zone 2 有氧','每组动作12到15次做到力竭'],
+        tips:['复合动作 - 下肢：深蹲、硬拉','复合动作 - 上肢：俯卧撑、推举、划船','力量和有氧要间隔2小时','先力量后有氧'],
+        grad:'linear-gradient(135deg,#a855f7,#ec4899)',
+        lightBg:'#f3e5f5', textColor:'#6a1b9a', borderColor:'#a855f7'
+    },
+    {
+        id:4, icon:'🔥',
+        name:'第四阶段：上重量 + HIIT',
+        subtitle:'增肌、突破肌肉耐力',
+        core:'可能几个月后，也可能一年后才到这个阶段',
+        desc:'别怕练壮，只管上重量',
+        goals:['力量训练一周3到4次','每次以8到12次的重量来做','练一天、休一天'],
+        tips:['上重量训练，突破肌肉耐力','休息日在家跳十几分钟HIIT','力量训练强度提升','持续进步，突破自我'],
+        grad:'linear-gradient(135deg,#fb923c,#ef4444)',
+        lightBg:'#fce4ec', textColor:'#b71c1c', borderColor:'#fb923c'
+    }
+];
+const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+const st = {
+    records:{}, notes:{},
+    userName:'', currentPhase:1,
+    selectedDate:null, currentNote:'',
+    year: new Date().getFullYear(),
+    month: new Date().getMonth(),
+    showNameInput:false, showPhaseSelector:false,
+    showMenu:false, showPhaseDetail:false,
+    confirmMsg:'', confirmCb:null,
+    exportData:null
+};
+
+// ─────────────────────────────────────────
+// STORAGE
+// ─────────────────────────────────────────
+const Store = {
+    toLS(k,v){ try{ localStorage.setItem(k,JSON.stringify(v));return true; }catch(e){return false;} },
+    fromLS(k){ try{ const d=localStorage.getItem(k);return d?JSON.parse(d):null; }catch(e){return null;} },
+    toCk(k,v){
+        try{
+            const enc=btoa(unescape(encodeURIComponent(JSON.stringify(v))));
+            document.cookie=`${k}=${enc}; max-age=${365*86400}; path=/; SameSite=Lax`;
+            return true;
+        }catch(e){return false;}
+    },
+    fromCk(k){
+        try{
+            for(const c of document.cookie.split(';')){
+                const i=c.indexOf('='); if(i<0)continue;
+                const n=c.slice(0,i).trim(), val=c.slice(i+1).trim();
+                if(n===k) return JSON.parse(decodeURIComponent(escape(atob(val))));
+            }
+            return null;
+        }catch(e){return null;}
+    },
+    toIDB(k,v){
+        return new Promise(res=>{
+            try{
+                const rq=indexedDB.open('ExDB',1);
+                rq.onerror=()=>res(false);
+                rq.onupgradeneeded=e=>{
+                    if(!e.target.result.objectStoreNames.contains('data'))
+                        e.target.result.createObjectStore('data',{keyPath:'key'});
+                };
+                rq.onsuccess=e=>{
+                    const db=e.target.result;
+                    const tx=db.transaction(['data'],'readwrite');
+                    tx.objectStore('data').put({key:k,value:v});
+                    tx.oncomplete=()=>{db.close();res(true);};
+                    tx.onerror=()=>{db.close();res(false);};
+                };
+            }catch(e){res(false);}
+        });
+    },
+    fromIDB(k){
+        return new Promise(res=>{
+            try{
+                const rq=indexedDB.open('ExDB',1);
+                rq.onerror=()=>res(null);
+                rq.onsuccess=e=>{
+                    const db=e.target.result;
+                    if(!db.objectStoreNames.contains('data')){db.close();res(null);return;}
+                    const tx=db.transaction(['data'],'readonly');
+                    const gr=tx.objectStore('data').get(k);
+                    gr.onsuccess=()=>{db.close();res(gr.result?gr.result.value:null);};
+                    gr.onerror=()=>{db.close();res(null);};
+                };
+            }catch(e){res(null);}
+        });
+    },
+    async save(k,v){ this.toLS(k,v); this.toCk(k,v); await this.toIDB(k,v); },
+    async load(k){
+        const a=this.fromLS(k); if(a!==null) return a;
+        const b=this.fromCk(k); if(b!==null) return b;
+        return await this.fromIDB(k);
+    }
+};
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+function phaseStats(){
+    const s={1:0,2:0,3:0,4:0};
+    for(const r of Object.values(st.records)){
+        const p=(r&&typeof r==='object')?r.phase:st.currentPhase;
+        if(p>=1&&p<=4) s[p]++;
+    }
+    return s;
+}
+function dk(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function daysIn(y,m){ return new Date(y,m+1,0).getDate(); }
+function firstDay(y,m){ return new Date(y,m,1).getDay(); }
+async function persist(){
+    await Store.save('exerciseRecords',st.records);
+    await Store.save('exerciseNotes',st.notes);
+}
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+function render(){
+    document.getElementById('app').innerHTML = buildPage() + buildModals();
+    // restore textarea value
+    const ta = document.getElementById('noteTA');
+    if(ta){ ta.value = st.currentNote; ta.focus(); }
+    const ni = document.getElementById('nameInp');
+    if(ni){ ni.focus(); }
+}
+
+function buildPage(){
+    const today = new Date();
+    const isCurMonth = st.year===today.getFullYear() && st.month===today.getMonth();
+    const ps = phaseStats();
+    const total = ps[1]+ps[2]+ps[3]+ps[4];
+    const cp = st.currentPhase;
+    const ph = PHASES[cp-1];
+
+    return `<div class="page">
+${headerCard(ph, ps[cp], today)}
+${statsCard(ps, total)}
+${calendarCard(today, isCurMonth)}
+</div>`;
+}
+
+function headerCard(ph, cpDays, today){
+    let detail = '';
+    if(st.showPhaseDetail){
+        detail = `<div style="margin-top:12px;background:rgba(255,255,255,0.2);border-radius:16px;padding:12px;font-size:12px;">
+            <p style="font-weight:700;margin-bottom:4px;">💡 核心理念</p>
+            <p style="opacity:.9;margin-bottom:8px;">${esc(ph.core)}</p>
+            <p style="font-weight:700;margin-bottom:4px;">📖 说明</p>
+            <p style="opacity:.9;margin-bottom:8px;">${esc(ph.desc)}</p>
+            <p style="font-weight:700;margin-bottom:4px;">🎯 目标</p>
+            ${ph.goals.map(g=>`<p style="opacity:.9;margin-bottom:3px;">• ${esc(g)}</p>`).join('')}
+            <p style="font-weight:700;margin-top:8px;margin-bottom:4px;">📝 要点</p>
+            ${ph.tips.map(t=>`<p style="opacity:.9;margin-bottom:3px;">• ${esc(t)}</p>`).join('')}
+            <button class="btn" onclick="openPhaseSelector()" style="width:100%;margin-top:12px;background:white;color:#333;padding:10px;border-radius:10px;font-size:13px;font-weight:700;">切换到其他阶段</button>
+        </div>`;
+    }
+    return `<div style="background:${ph.grad};border-radius:24px;padding:16px;margin-bottom:16px;color:white;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+        <div class="row-sb mb12">
+            <div>
+                <h1 style="font-size:18px;font-weight:700;margin-bottom:3px;">苹果型身材运动打卡记录</h1>
+                <p style="font-size:13px;opacity:.9;">${esc(st.userName)||'未命名用户'}</p>
+            </div>
+            <button class="btn btn-white-trans" onclick="openMenu()">☰</button>
+        </div>
+        <div style="background:rgba(255,255,255,0.2);border-radius:16px;padding:12px;margin-bottom:12px;">
+            <div class="row gap12 mb8">
+                <span style="font-size:28px;">${ph.icon}</span>
+                <div style="flex:1;">
+                    <p style="font-size:13px;font-weight:700;">${esc(ph.name)}</p>
+                    <p style="font-size:11px;opacity:.9;">${esc(ph.subtitle)}</p>
+                </div>
+            </div>
+            <div style="text-align:center;">
+                <span style="font-size:36px;font-weight:700;">${cpDays}</span>
+                <span style="font-size:13px;"> 天 · 本阶段</span>
+            </div>
+        </div>
+        <button class="btn" onclick="toggleDetail()" style="width:100%;background:rgba(255,255,255,0.2);color:white;padding:9px;border-radius:10px;font-size:13px;font-weight:700;">
+            ${st.showPhaseDetail?'收起详情 ▲':'查看本阶段详情 ▼'}
+        </button>
+        ${detail}
+    </div>`;
+}
+
+function statsCard(ps, total){
+    return `<div class="card">
+        <div style="text-align:center;margin-bottom:16px;">
+            <p style="color:#9ca3af;font-size:12px;margin-bottom:4px;">累计运动</p>
+            <p class="grad-text" style="font-size:52px;font-weight:700;">${total}</p>
+            <p style="color:#9ca3af;font-size:12px;">天</p>
+            <p style="color:#a855f7;font-size:13px;font-weight:600;margin-top:8px;">🎉 坚持就是胜利！💪 继续加油</p>
+        </div>
+        <div class="stat-grid">
+            ${PHASES.map(p=>`
+            <div class="stat-cell" style="background:${p.lightBg};">
+                <div style="font-size:22px;margin-bottom:4px;">${p.icon}</div>
+                <p style="font-size:20px;font-weight:700;color:${p.textColor};">${ps[p.id]||0}</p>
+                <p style="font-size:11px;color:#6b7280;margin-top:2px;">阶段${p.id}</p>
+            </div>`).join('')}
+        </div>
+    </div>`;
+}
+
+function calendarCard(today, isCurMonth){
+    const days = daysIn(st.year, st.month);
+    const fd = firstDay(st.year, st.month);
+    let cells = '';
+    for(let i=0;i<fd;i++) cells += `<div class="cal-empty"></div>`;
+    for(let d=1;d<=days;d++){
+        const key = dk(st.year, st.month, d);
+        const rec = st.records[key];
+        const checked = !!rec;
+        const rp = (rec&&typeof rec==='object') ? rec.phase : st.currentPhase;
+        const rph = PHASES[rp-1];
+        const isToday = isCurMonth && d===today.getDate();
+        const note = st.notes[key];
+        let cls = 'cal-day';
+        if(checked) cls += ' checked';
+        if(isToday && !checked) cls += ' today-ring';
+        const bg = checked ? `background:${rph.grad};` : '';
+        cells += `<button class="${cls}" style="${bg}" onclick="clickDay(${d})">
+            <span>${d}</span>
+            ${checked?`<span class="cal-icon">${rph.icon}</span>`:''}
+            ${note?`<span class="cal-note">${esc(note)}</span>`:''}
+        </button>`;
+    }
+    return `<div class="card">
+        <div class="row-sb mb16">
+            <button class="btn btn-ghost" style="padding:8px 14px;font-size:18px;" onclick="prevMonth()">‹</button>
+            <div style="text-align:center;flex:1;">
+                <h2 class="grad-text" style="font-size:20px;font-weight:700;">${st.year}年 ${MONTHS[st.month]}</h2>
+                ${!isCurMonth?`<button onclick="goToday()" style="font-size:11px;color:#a855f7;font-weight:600;background:none;border:none;cursor:pointer;margin-top:4px;">回到今天 →</button>`:''}
+            </div>
+            <button class="btn btn-ghost" style="padding:8px 14px;font-size:18px;" onclick="nextMonth()">›</button>
+        </div>
+        <div class="cal-grid mb8">
+            ${['日','一','二','三','四','五','六'].map(d=>`<div class="cal-hd">${d}</div>`).join('')}
+        </div>
+        <div class="cal-grid">${cells}</div>
+        <div class="tip-box mt16">
+            <p style="font-size:11px;color:#374151;font-weight:700;margin-bottom:6px;">💡 提示：</p>
+            <p style="font-size:11px;color:#6b7280;margin-bottom:6px;">点击日期打卡，笔记可选填</p>
+            <div class="row gap8" style="flex-wrap:wrap;">
+                ${PHASES.map(p=>`<div class="row gap8">
+                    <div style="width:20px;height:20px;border-radius:6px;background:${p.grad};display:flex;align-items:center;justify-content:center;font-size:10px;color:white;font-weight:700;">${p.id}</div>
+                    <span style="font-size:11px;color:#6b7280;">阶段${p.id}</span>
+                </div>`).join('')}
+            </div>
+        </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────
+// MODALS
+// ─────────────────────────────────────────
+function buildModals(){
+    let html = '';
+    if(st.showNameInput) html += nameModal();
+    if(st.showPhaseSelector) html += phaseSelectorModal();
+    if(st.showMenu) html += menuModal();
+    if(st.selectedDate) html += noteModal();
+    if(st.confirmMsg) html += confirmModal();
+    if(st.exportData) html += exportModal();
+    return html;
+}
+
+function nameModal(){
+    return `<div class="overlay center">
+        <div class="popup">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:56px;margin-bottom:12px;">🎉</div>
+                <h2 class="grad-text" style="font-size:22px;font-weight:700;margin-bottom:6px;">欢迎使用</h2>
+                <p style="color:#6b7280;font-size:13px;">苹果型身材运动打卡记录</p>
+            </div>
+            <label style="display:block;font-size:13px;font-weight:700;color:#374151;margin-bottom:8px;">请输入你的昵称：</label>
+            <input id="nameInp" class="inp mb16" type="text" placeholder="例如：小美" value="${esc(st.userName)}" oninput="st.userName=this.value" onkeydown="if(event.key==='Enter')saveUserName()">
+            <button class="btn btn-primary" onclick="saveUserName()">下一步 →</button>
+        </div>
+    </div>`;
+}
+
+function phaseSelectorModal(){
+    const canClose = st.userName && st.currentPhase>=1 && st.currentPhase<=4;
+    return `<div class="overlay">
+        <div class="sheet">
+            <div class="sheet-hdr">
+                <h2 class="grad-text" style="font-size:18px;font-weight:700;">选择你当前的阶段 ✨</h2>
+                ${canClose?`<button class="btn btn-ghost" style="padding:8px;" onclick="closePhaseSelector()">✕</button>`:''}
+            </div>
+            <div class="sheet-body">
+                <p style="color:#6b7280;font-size:13px;margin-bottom:12px;">请根据自己的实际情况选择：</p>
+                ${PHASES.map(p=>`
+                <button class="phase-opt mb8" style="${st.currentPhase===p.id?`border-color:${p.borderColor};border-width:3px;box-shadow:0 4px 20px rgba(0,0,0,0.1);`:''}" onclick="selectPhase(${p.id})">
+                    <span style="font-size:28px;">${p.icon}</span>
+                    <div style="flex:1;">
+                        <p style="font-size:13px;font-weight:700;color:${p.textColor};margin-bottom:3px;">${esc(p.name)}</p>
+                        <p style="font-size:11px;color:#6b7280;margin-bottom:3px;">${esc(p.subtitle)}</p>
+                        <p style="font-size:11px;font-weight:700;color:#374151;">${esc(p.core)}</p>
+                    </div>
+                </button>`).join('')}
+                <div class="warn-box mt8">
+                    <p style="font-size:12px;color:#92400e;">💡 别担心，你随时可以在设置中切换阶段</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function menuModal(){
+    const ps = phaseStats();
+    return `<div class="overlay">
+        <div class="sheet">
+            <div class="sheet-hdr">
+                <h2 class="grad-text" style="font-size:18px;font-weight:700;">设置与阶段详情</h2>
+                <button class="btn btn-ghost" style="padding:8px;" onclick="closeMenu()">✕</button>
+            </div>
+            <div class="sheet-body">
+                <p style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:12px;">切换阶段</p>
+                ${PHASES.map(p=>`
+                <button class="phase-opt mb12" style="${st.currentPhase===p.id?`border-color:${p.borderColor};border-width:3px;`:''}" onclick="changePhase(${p.id})">
+                    <div style="flex:1;">
+                        <div class="row gap8 mb8">
+                            <span style="font-size:26px;">${p.icon}</span>
+                            <div style="flex:1;">
+                                <div class="row gap8 mb4">
+                                    <p style="font-size:13px;font-weight:700;color:${p.textColor};">${esc(p.name)}</p>
+                                    ${st.currentPhase===p.id?`<span style="font-size:10px;background:#a855f7;color:white;padding:2px 6px;border-radius:99px;font-weight:700;white-space:nowrap;">当前</span>`:''}
+                                </div>
+                                <p style="font-size:11px;color:#6b7280;">${esc(p.subtitle)}</p>
+                                <p style="font-size:11px;font-weight:700;color:#a855f7;margin-top:2px;">${ps[p.id]||0}天</p>
+                            </div>
+                        </div>
+                        <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:4px;">💡 ${esc(p.core)}</p>
+                        <p style="font-size:11px;color:#6b7280;margin-bottom:6px;">${esc(p.desc)}</p>
+                        <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:3px;">🎯 目标</p>
+                        ${p.goals.map(g=>`<p style="font-size:11px;color:#6b7280;margin-left:8px;margin-bottom:2px;">• ${esc(g)}</p>`).join('')}
+                        <p style="font-size:11px;font-weight:700;color:#374151;margin-bottom:3px;margin-top:6px;">📝 要点</p>
+                        ${p.tips.map(t=>`<p style="font-size:11px;color:#6b7280;margin-left:8px;margin-bottom:2px;">• ${esc(t)}</p>`).join('')}
+                    </div>
+                </button>`).join('')}
+
+                <p style="font-size:14px;font-weight:700;color:#1f2937;margin-bottom:10px;">数据管理</p>
+                <button class="btn btn-green mb8" onclick="exportData()">📤 导出备份</button>
+                <label class="btn btn-blue mb16" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+                    📥 导入数据
+                    <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+                </label>
+
+                <div class="warn-box mb12">
+                    <p style="font-weight:700;color:#92400e;margin-bottom:6px;font-size:13px;">⚠️ 重要提醒</p>
+                    <p style="font-size:12px;color:#92400e;line-height:1.6;">• 数据已三重备份（localStorage + Cookie + IndexedDB）<br>• 建议每月导出备份到微信收藏或云盘<br>• 换手机前务必导出数据<br>• 清理浏览器数据会删除所有记录</p>
+                </div>
+                <div class="info-box">
+                    <p style="font-weight:700;color:#1e40af;margin-bottom:6px;font-size:13px;">📱 使用技巧</p>
+                    <p style="font-size:12px;color:#1e40af;line-height:1.6;">• 点击日期打卡，笔记可选填<br>• 点击已打卡日期可修改笔记<br>• 日历格子内显示阶段图标和备注</p>
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
+function noteModal(){
+    const isChecked = !!st.records[st.selectedDate];
+    return `<div class="overlay center">
+        <div class="popup" style="max-width:440px;width:100%;">
+            <h2 class="grad-text" style="font-size:18px;font-weight:700;margin-bottom:4px;">📝 ${st.selectedDate}</h2>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">点击"完成打卡"即可记录，笔记可选填</p>
+            <textarea id="noteTA" class="inp mb12" placeholder="记录今天的运动内容（可选）...
+
+例如：走路8000步 / 超慢跑30分钟
+感觉很棒！" oninput="st.currentNote=this.value"></textarea>
+            <div class="row gap8">
+                <button class="btn btn-primary" style="flex:1;" onclick="saveNote()">✅ 完成打卡</button>
+                ${isChecked?`<button class="btn btn-danger" onclick="askDelete()">删除</button>`:''}
+                <button class="btn btn-ghost" onclick="cancelNote()">取消</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function confirmModal(){
+    return `<div class="overlay center">
+        <div style="background:white;border-radius:20px;padding:24px;max-width:300px;width:100%;text-align:center;">
+            <p style="font-size:16px;font-weight:700;color:#1f2937;margin-bottom:16px;">${esc(st.confirmMsg)}</p>
+            <div class="row gap8">
+                <button class="btn btn-danger" style="flex:1;" onclick="confirmYes()">确定</button>
+                <button class="btn btn-ghost" style="flex:1;" onclick="confirmNo()">取消</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function exportModal(){
+    return `<div class="overlay center">
+        <div class="popup" style="max-width:440px;width:100%;">
+            <h2 style="font-size:16px;font-weight:700;color:#1f2937;margin-bottom:8px;">📋 备份数据</h2>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:10px;">请复制以下内容，保存到备忘录或微信收藏：</p>
+            <textarea style="width:100%;height:140px;font-size:11px;border:2px solid #e5e7eb;border-radius:10px;padding:8px;resize:none;background:#f9fafb;font-family:monospace;" readonly>${esc(st.exportData)}</textarea>
+            <div class="row gap8 mt12">
+                <button class="btn btn-primary" style="flex:1;" onclick="copyExport()">📋 复制</button>
+                <button class="btn btn-ghost" onclick="closeExport()">关闭</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────
+// EVENT HANDLERS
+// ─────────────────────────────────────────
+function clickDay(d){
+    const key = dk(st.year, st.month, d);
+    st.selectedDate = key;
+    st.currentNote = st.notes[key] || '';
+    render();
+}
+function saveNote(){
+    if(!st.selectedDate) return;
+    const key = st.selectedDate;
+    if(st.currentNote.trim()){
+        st.notes[key] = st.currentNote.trim();
+    } else {
+        delete st.notes[key];
+    }
+    st.records[key] = { phase: st.currentPhase };
+    st.selectedDate = null;
+    st.currentNote = '';
+    render();
+    persist();
+}
+function cancelNote(){ st.selectedDate=null; st.currentNote=''; render(); }
+function askDelete(){ showConfirm('确定要删除这天的记录吗？', doDelete); }
+function doDelete(){
+    if(!st.selectedDate) return;
+    delete st.records[st.selectedDate];
+    delete st.notes[st.selectedDate];
+    st.selectedDate = null;
+    st.currentNote = '';
+    render();
+    persist();
+}
+function prevMonth(){
+    if(st.month===0){ st.month=11; st.year--; } else st.month--;
+    render();
+}
+function nextMonth(){
+    if(st.month===11){ st.month=0; st.year++; } else st.month++;
+    render();
+}
+function goToday(){
+    const t=new Date(); st.year=t.getFullYear(); st.month=t.getMonth();
+    render();
+}
+function toggleDetail(){ st.showPhaseDetail=!st.showPhaseDetail; render(); }
+function openMenu(){ st.showMenu=true; render(); }
+function closeMenu(){ st.showMenu=false; render(); }
+function openPhaseSelector(){ st.showPhaseDetail=false; st.showPhaseSelector=true; render(); }
+function closePhaseSelector(){ st.showPhaseSelector=false; render(); }
+function selectPhase(id){
+    st.currentPhase=id;
+    st.showPhaseSelector=false;
+    render();
+    Store.save('currentPhase',id);
+}
+function changePhase(id){
+    st.currentPhase=id;
+    st.showMenu=false;
+    render();
+    Store.save('currentPhase',id);
+}
+function showConfirm(msg, cb){ st.confirmMsg=msg; st.confirmCb=cb; render(); }
+function confirmYes(){ if(st.confirmCb) st.confirmCb(); st.confirmMsg=''; st.confirmCb=null; render(); }
+function confirmNo(){ st.confirmMsg=''; st.confirmCb=null; render(); }
+function exportData(){
+    const data = JSON.stringify({ records:st.records, notes:st.notes, userName:st.userName, currentPhase:st.currentPhase, exportDate:new Date().toISOString() }, null, 2);
+    // Try native download first
+    try {
+        const blob = new Blob([data],{type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href=url; a.download=`${st.userName||'打卡'}_运动记录_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        // Also show fallback for WeChat
+        st.exportData = data;
+        st.showMenu = false;
+        render();
+    } catch(e) {
+        st.exportData = data;
+        st.showMenu = false;
+        render();
+    }
+}
+function closeExport(){ st.exportData=null; render(); }
+function copyExport(){
+    const ta = document.querySelector('#app textarea[readonly]');
+    if(!ta) return;
+    try {
+        if(navigator.clipboard){
+            navigator.clipboard.writeText(ta.value).then(()=>alert('✅ 已复制！'));
+        } else {
+            ta.select(); document.execCommand('copy'); alert('✅ 已复制！');
+        }
+    } catch(e){ ta.select(); document.execCommand('copy'); }
+}
+function importData(e){
+    const file = e.target.files&&e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async ev => {
+        try{
+            const data = JSON.parse(ev.target.result);
+            showConfirm('导入将覆盖当前数据，确定吗？', async ()=>{
+                st.records = data.records||{};
+                st.notes = data.notes||{};
+                if(data.userName) st.userName=data.userName;
+                if(data.currentPhase) st.currentPhase=data.currentPhase;
+                st.showMenu=false;
+                render();
+                await persist();
+                await Store.save('userName',st.userName);
+                await Store.save('currentPhase',st.currentPhase);
+                alert('✅ 数据导入成功！');
+            });
+        } catch(err){ alert('❌ 文件格式错误'); }
+    };
+    reader.readAsText(file);
+}
+function saveUserName(){
+    const nm = (st.userName||'').trim();
+    if(!nm) return;
+    st.userName=nm;
+    st.showNameInput=false;
+    Store.save('userName',nm);
+    if(!(st.currentPhase>=1&&st.currentPhase<=4)){
+        st.showPhaseSelector=true;
+    }
+    render();
+}
+
+// ─────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────
+(async function init(){
+    try {
+        const [name, phase, records, notes] = await Promise.all([
+            Store.load('userName'),
+            Store.load('currentPhase'),
+            Store.load('exerciseRecords'),
+            Store.load('exerciseNotes')
+        ]);
+        if(name) st.userName=name; else st.showNameInput=true;
+        const pNum = parseInt(phase);
+        if(pNum>=1&&pNum<=4) st.currentPhase=pNum; else if(!name) st.showPhaseSelector=true;
+        if(!name&&pNum>=1&&pNum<=4) st.showPhaseSelector=true;
+        if(records) st.records=records;
+        if(notes) st.notes=notes;
+    } catch(e){
+        st.showNameInput=true;
+    }
+    render();
+})();
+</script>
+</body>
+</html>
