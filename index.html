@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>苹果型姐妹运动打卡</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+        }
+        #root {
+            min-height: 100vh;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .calendar-day {
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .note-display {
+            font-size: 10px;
+            line-height: 1.2;
+            word-break: break-all;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        textarea {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        button {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // 多重存储策略 - 兼容所有国内浏览器
+        const StorageManager = {
+            // 1. localStorage
+            saveToLocal: (key, data) => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(data));
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            getFromLocal: (key) => {
+                try {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : null;
+                } catch (e) {
+                    return null;
+                }
+            },
+            
+            // 2. Cookie 备份（微信浏览器兼容）
+            saveToCookie: (key, data) => {
+                try {
+                    const value = JSON.stringify(data);
+                    const encoded = btoa(encodeURIComponent(value));
+                    const maxAge = 365 * 24 * 60 * 60; // 1年
+                    document.cookie = `${key}=${encoded}; max-age=${maxAge}; path=/; SameSite=Lax`;
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            getFromCookie: (key) => {
+                try {
+                    const cookies = document.cookie.split(';');
+                    for (let cookie of cookies) {
+                        const [name, value] = cookie.trim().split('=');
+                        if (name === key) {
+                            const decoded = decodeURIComponent(atob(value));
+                            return JSON.parse(decoded);
+                        }
+                    }
+                    return null;
+                } catch (e) {
+                    return null;
+                }
+            },
+            
+            // 3. IndexedDB 备份（容量大、更可靠）
+            saveToIndexedDB: async (key, data) => {
+                return new Promise((resolve) => {
+                    try {
+                        const request = indexedDB.open('ExerciseTrackerDB', 1);
+                        
+                        request.onerror = () => resolve(false);
+                        
+                        request.onupgradeneeded = (event) => {
+                            const db = event.target.result;
+                            if (!db.objectStoreNames.contains('data')) {
+                                db.createObjectStore('data', { keyPath: 'key' });
+                            }
+                        };
+                        
+                        request.onsuccess = (event) => {
+                            const db = event.target.result;
+                            const transaction = db.transaction(['data'], 'readwrite');
+                            const store = transaction.objectStore('data');
+                            store.put({ key, value: data });
+                            transaction.oncomplete = () => {
+                                db.close();
+                                resolve(true);
+                            };
+                            transaction.onerror = () => {
+                                db.close();
+                                resolve(false);
+                            };
+                        };
+                    } catch (e) {
+                        resolve(false);
+                    }
+                });
+            },
+            getFromIndexedDB: async (key) => {
+                return new Promise((resolve) => {
+                    try {
+                        const request = indexedDB.open('ExerciseTrackerDB', 1);
+                        
+                        request.onerror = () => resolve(null);
+                        
+                        request.onsuccess = (event) => {
+                            const db = event.target.result;
+                            if (!db.objectStoreNames.contains('data')) {
+                                db.close();
+                                resolve(null);
+                                return;
+                            }
+                            const transaction = db.transaction(['data'], 'readonly');
+                            const store = transaction.objectStore('data');
+                            const getRequest = store.get(key);
+                            
+                            getRequest.onsuccess = () => {
+                                db.close();
+                                resolve(getRequest.result?.value || null);
+                            };
+                            getRequest.onerror = () => {
+                                db.close();
+                                resolve(null);
+                            };
+                        };
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+            },
+            
+            // 统一保存接口（三重备份）
+            save: async (key, data) => {
+                const results = [];
+                results.push(StorageManager.saveToLocal(key, data));
+                results.push(StorageManager.saveToCookie(key, data));
+                const indexedDBResult = await StorageManager.saveToIndexedDB(key, data);
+                results.push(indexedDBResult);
+                return results.some(r => r); // 至少一个成功就算成功
+            },
+            
+            // 统一读取接口（优先级：localStorage > Cookie > IndexedDB）
+            load: async (key) => {
+                let data = StorageManager.getFromLocal(key);
+                if (data) return data;
+                
+                data = StorageManager.getFromCookie(key);
+                if (data) return data;
+                
+                data = await StorageManager.getFromIndexedDB(key);
+                return data;
+            }
+        };
+
+        // 图标组件
+        const ChevronLeft = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>;
+        const ChevronRight = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>;
+        const Menu = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
+        const X = () => <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
+        const Download = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>;
+        const Upload = () => <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>;
+
+        function MobileCalendarApp() {
+          const [records, setRecords] = useState({});
+          const [notes, setNotes] = useState({});
+          const [selectedDate, setSelectedDate] = useState(null);
+          const [currentNote, setCurrentNote] = useState('');
+          const [userName, setUserName] = useState('');
+          const [currentPhase, setCurrentPhase] = useState(1);
+          const [showNameInput, setShowNameInput] = useState(false);
+          const [showPhaseSelector, setShowPhaseSelector] = useState(false);
+          const [showMenu, setShowMenu] = useState(false);
+          const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+          const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+          const [showPhaseDetail, setShowPhaseDetail] = useState(false);
+          const [isLoading, setIsLoading] = useState(true);
+          const textareaRef = useRef(null);
+
+          const phases = [
+            {
+              id: 1,
+              name: '第一阶段：以"动起来"为目标',
+              color: 'from-cyan-400 to-blue-500',
+              bgColor: 'bg-gradient-to-br from-cyan-400 to-blue-500',
+              textColor: 'text-blue-700',
+              checkColor: 'from-cyan-400 to-blue-500',
+              lightBg: 'bg-blue-50',
+              borderColor: 'border-blue-400',
+              icon: '🚶‍♀️',
+              subtitle: '不让自己受罪，欺骗大脑和身体',
+              core: '最推荐走路——最无痛、最简单的减脂运动',
+              description: '走路不刺激压力激素，还能减少内脏脂肪、提高胰岛素敏感度',
+              goals: ['先从每天4000步开始', '然后6000步', '最后到一万步以上'],
+              tips: ['下班提前两站下车走回家', '走路去上班', '在家没事就出去逛逛', '等哪天你发现，诶，今天没走路，浑身不舒服——恭喜你，可以进第二阶段了']
+            },
+            {
+              id: 2,
+              name: '第二阶段：燃脂 + 提高心肺',
+              color: 'from-green-400 to-emerald-500',
+              bgColor: 'bg-gradient-to-br from-green-400 to-emerald-500',
+              textColor: 'text-green-700',
+              checkColor: 'from-green-400 to-emerald-500',
+              lightBg: 'bg-green-50',
+              borderColor: 'border-green-400',
+              icon: '🏃‍♀️',
+              subtitle: '中低强度有氧 Zone 2 运动',
+              core: 'Zone 2 = 有点喘但还能说话，不能唱歌',
+              description: '这个强度燃脂效率最高',
+              goals: ['一周5到6次 Zone 2 有氧', '一周两次力量动作学习（空手、不上重量）', '学习深蹲、硬拉怎么发力'],
+              tips: ['推荐运动：超慢跑、爬坡、快走、不跑不跳的燃脂操', '爬坡效率比跑步机跑步还高', '这个阶段大概一个月，配合饮食体重会掉一些', '有了正反馈，你就愿意尝试更多挑战了']
+            },
+            {
+              id: 3,
+              name: '第三阶段：力量为主，有氧为辅',
+              color: 'from-purple-400 to-pink-500',
+              bgColor: 'bg-gradient-to-br from-purple-400 to-pink-500',
+              textColor: 'text-purple-700',
+              checkColor: 'from-purple-400 to-pink-500',
+              lightBg: 'bg-purple-50',
+              borderColor: 'border-purple-400',
+              icon: '💪',
+              subtitle: '维持体重、塑形的长期阶段',
+              core: '力量训练提高代谢、持续燃脂、减少肝脏脂肪',
+              description: '从壶铃、哑铃居家锻炼开始，网上有很多跟练视频',
+              goals: ['一周4到5次力量训练', '一周两次 Zone 2 有氧', '每组动作12到15次做到力竭'],
+              tips: ['复合动作 - 下肢：深蹲、硬拉', '复合动作 - 上肢：俯卧撑、推举、划船', '力量和有氧要间隔2小时', '先力量后有氧']
+            },
+            {
+              id: 4,
+              name: '第四阶段：上重量 + HIIT',
+              color: 'from-orange-400 to-red-500',
+              bgColor: 'bg-gradient-to-br from-orange-400 to-red-500',
+              textColor: 'text-red-700',
+              checkColor: 'from-orange-400 to-red-500',
+              lightBg: 'bg-red-50',
+              borderColor: 'border-orange-400',
+              icon: '🔥',
+              subtitle: '增肌、突破肌肉耐力',
+              core: '可能几个月后，也可能一年后才到这个阶段',
+              description: '别怕练壮，只管上重量',
+              goals: ['力量训练一周3到4次', '每次以8到12次的重量来做', '练一天、休一天'],
+              tips: ['上重量训练，突破肌肉耐力', '休息日在家跳十几分钟HIIT', '力量训练强度提升', '持续进步，突破自我']
+            }
+          ];
+
+          useEffect(() => {
+            const initApp = async () => {
+              setIsLoading(true);
+              try {
+                const savedName = await StorageManager.load('userName');
+                const savedPhase = await StorageManager.load('currentPhase');
+                const savedRecords = await StorageManager.load('exerciseRecords');
+                const savedNotes = await StorageManager.load('exerciseNotes');
+                
+                if (savedName) {
+                  setUserName(savedName);
+                } else {
+                  setShowNameInput(true);
+                }
+                
+                if (savedPhase) {
+                  const phaseNum = typeof savedPhase === 'number' ? savedPhase : parseInt(savedPhase);
+                  if (phaseNum >= 1 && phaseNum <= 4) {
+                    setCurrentPhase(phaseNum);
+                  } else {
+                    setShowPhaseSelector(true);
+                  }
+                } else {
+                  setShowPhaseSelector(true);
+                }
+                
+                if (savedRecords) setRecords(savedRecords);
+                if (savedNotes) setNotes(savedNotes);
+              } catch (error) {
+                setShowNameInput(true);
+                setShowPhaseSelector(true);
+              } finally {
+                setIsLoading(false);
+              }
+            };
+
+            initApp();
+          }, []);
+
+          useEffect(() => {
+            if (selectedDate && textareaRef.current) {
+              textareaRef.current.focus();
+            }
+          }, [selectedDate]);
+
+          const saveData = async (newRecords, newNotes) => {
+            try {
+              await StorageManager.save('exerciseRecords', newRecords);
+              await StorageManager.save('exerciseNotes', newNotes);
+            } catch (error) {
+              console.error('保存失败', error);
+            }
+          };
+
+          const saveUserName = async () => {
+            if (userName.trim()) {
+              try {
+                await StorageManager.save('userName', userName.trim());
+                setShowNameInput(false);
+                const savedPhase = await StorageManager.load('currentPhase');
+                if (!savedPhase) {
+                  setShowPhaseSelector(true);
+                }
+              } catch (error) {
+                setShowNameInput(false);
+                setShowPhaseSelector(true);
+              }
+            }
+          };
+
+          const selectPhase = async (phaseId) => {
+            setCurrentPhase(phaseId);
+            try {
+              await StorageManager.save('currentPhase', phaseId);
+            } catch (error) {}
+            setShowPhaseSelector(false);
+          };
+
+          const changePhase = async (phaseId) => {
+            setCurrentPhase(phaseId);
+            try {
+              await StorageManager.save('currentPhase', phaseId);
+            } catch (error) {}
+            setShowMenu(false);
+            setShowPhaseSelector(false);
+          };
+
+          const getPhaseStats = () => {
+            const stats = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            Object.entries(records).forEach(([dateKey, record]) => {
+              if (record && typeof record === 'object' && record.phase) {
+                stats[record.phase] = (stats[record.phase] || 0) + 1;
+              } else if (record === true) {
+                stats[currentPhase] = (stats[currentPhase] || 0) + 1;
+              }
+            });
+            return stats;
+          };
+
+          const getDaysInMonth = (year, month) => {
+            return new Array(new Date(year, month + 1, 0).getDate()).fill(null).map((_, i) => i + 1);
+          };
+
+          const toggleRecord = (day) => {
+            const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            setSelectedDate(dateKey);
+            setCurrentNote(notes[dateKey] || '');
+          };
+
+          const saveNote = async () => {
+            if (selectedDate) {
+              const newNotes = { ...notes };
+              if (currentNote.trim()) {
+                newNotes[selectedDate] = currentNote.trim();
+              } else {
+                delete newNotes[selectedDate];
+              }
+              setNotes(newNotes);
+              
+              const newRecords = { ...records };
+              newRecords[selectedDate] = { phase: currentPhase };
+              
+              setRecords(newRecords);
+              await saveData(newRecords, newNotes);
+              setSelectedDate(null);
+              setCurrentNote('');
+            }
+          };
+
+          const cancelNote = () => {
+            setSelectedDate(null);
+            setCurrentNote('');
+          };
+
+          const deleteRecord = async () => {
+            if (selectedDate && window.confirm('确定要删除这天的记录吗？')) {
+              const newRecords = { ...records };
+              const newNotes = { ...notes };
+              delete newRecords[selectedDate];
+              delete newNotes[selectedDate];
+              setRecords(newRecords);
+              setNotes(newNotes);
+              await saveData(newRecords, newNotes);
+              setSelectedDate(null);
+              setCurrentNote('');
+            }
+          };
+
+          const exportData = () => {
+            try {
+              const data = {
+                records,
+                notes,
+                userName,
+                currentPhase,
+                exportDate: new Date().toISOString()
+              };
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              const dateStr = new Date().toISOString().split('T')[0];
+              a.download = `${userName}_运动打卡_${dateStr}.json`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+              setShowMenu(false);
+              alert('✅ 备份已下载！建议保存到微信收藏或云盘');
+            } catch (error) {
+              alert('❌ 导出失败，请重试');
+            }
+          };
+
+          const importData = async (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = async (event) => {
+                try {
+                  const data = JSON.parse(event.target.result);
+                  if (window.confirm('导入将覆盖当前数据，确定吗？')) {
+                    setRecords(data.records || {});
+                    setNotes(data.notes || {});
+                    if (data.userName) setUserName(data.userName);
+                    if (data.currentPhase) setCurrentPhase(data.currentPhase);
+                    await saveData(data.records || {}, data.notes || {});
+                    try {
+                      if (data.currentPhase) await StorageManager.save('currentPhase', data.currentPhase);
+                      if (data.userName) await StorageManager.save('userName', data.userName);
+                    } catch (error) {}
+                    setShowMenu(false);
+                    alert('✅ 数据导入成功！');
+                  }
+                } catch (error) {
+                  alert('❌ 文件格式错误');
+                }
+              };
+              reader.readAsText(file);
+            }
+          };
+
+          const prevMonth = () => {
+            if (currentMonth === 0) {
+              setCurrentMonth(11);
+              setCurrentYear(currentYear - 1);
+            } else {
+              setCurrentMonth(currentMonth - 1);
+            }
+          };
+
+          const nextMonth = () => {
+            if (currentMonth === 11) {
+              setCurrentMonth(0);
+              setCurrentYear(currentYear + 1);
+            } else {
+              setCurrentMonth(currentMonth + 1);
+            }
+          };
+
+          const goToToday = () => {
+            const today = new Date();
+            setCurrentYear(today.getFullYear());
+            setCurrentMonth(today.getMonth());
+          };
+
+          if (isLoading) {
+            return (
+              <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="text-6xl mb-4 animate-pulse">🏃‍♀️</div>
+                  <p className="text-xl font-bold gradient-text">加载中...</p>
+                </div>
+              </div>
+            );
+          }
+
+          const days = getDaysInMonth(currentYear, currentMonth);
+          const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+          const phaseStats = getPhaseStats();
+          const totalDays = Object.values(phaseStats).reduce((sum, count) => sum + count, 0);
+          const currentPhaseDays = phaseStats[currentPhase] || 0;
+          const today = new Date();
+          const isCurrentMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
+          const currentPhaseInfo = phases[currentPhase - 1];
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100">
+              
+              {/* 昵称输入弹窗 */}
+              {showNameInput && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-sm w-full">
+                    <div className="text-center mb-6">
+                      <div className="text-6xl mb-4">🎉</div>
+                      <h2 className="text-2xl font-bold gradient-text mb-2">欢迎使用</h2>
+                      <p className="text-gray-600 text-sm">苹果型姐妹运动打卡系统</p>
+                    </div>
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">请输入你的昵称：</label>
+                      <input
+                        type="text"
+                        value={userName}
+                        onChange={(e) => setUserName(e.target.value)}
+                        placeholder="例如：小美"
+                        className="w-full px-4 py-3 border-2 border-purple-300 rounded-xl focus:border-purple-500 focus:outline-none text-base"
+                        onKeyPress={(e) => e.key === 'Enter' && saveUserName()}
+                      />
+                    </div>
+                    <button
+                      onClick={saveUserName}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold text-lg active:scale-95 transition-transform"
+                    >
+                      下一步 →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* 阶段选择弹窗 */}
+              {showPhaseSelector && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end md:items-center justify-center z-50 p-0 md:p-4">
+                  <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-4 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4 sticky top-0 bg-white pb-2">
+                      <h2 className="text-xl font-bold gradient-text">选择你当前的阶段 ✨</h2>
+                      {userName && currentPhase >= 1 && currentPhase <= 4 && (
+                        <button onClick={() => setShowPhaseSelector(false)} className="p-2 hover:bg-gray-100 rounded-lg active:scale-95 transition-transform">
+                          <X />
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-gray-600 mb-4 text-sm">请根据自己的实际情况选择：</p>
+                    <div className="space-y-3">
+                      {phases.map((phase) => (
+                        <button
+                          key={phase.id}
+                          onClick={() => selectPhase(phase.id)}
+                          className={`w-full text-left p-4 rounded-2xl border-2 transition-all active:scale-98 ${
+                            currentPhase === phase.id ? `border-4 ${phase.borderColor} shadow-lg` : 'border-gray-200'
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="text-3xl">{phase.icon}</div>
+                            <div className="flex-1">
+                              <h3 className={`text-base font-bold mb-1 ${phase.textColor}`}>{phase.name}</h3>
+                              <p className="text-xs text-gray-600 mb-1">{phase.subtitle}</p>
+                              <p className="text-xs font-semibold text-gray-700">{phase.core}</p>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-yellow-50 border-2 border-yellow-200 rounded-xl">
+                      <p className="text-xs text-yellow-800">💡 别担心，你随时可以在设置中切换阶段</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 主界面 */}
+              <div className="max-w-4xl mx-auto p-3 pb-20">
+                
+                {/* 顶部栏 */}
+                <div className={`bg-gradient-to-r ${currentPhaseInfo.color} rounded-3xl shadow-2xl p-4 mb-4 text-white`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex-1">
+                      <h1 className="text-xl font-bold mb-1">苹果型姐妹运动打卡</h1>
+                      <p className="text-white text-opacity-90 text-sm">{userName || '未命名用户'}</p>
+                    </div>
+                    <button
+                      onClick={() => setShowMenu(true)}
+                      className="p-2 hover:bg-white hover:bg-opacity-20 rounded-xl transition-all active:scale-95 flex-shrink-0"
+                    >
+                      <Menu />
+                    </button>
+                  </div>
+
+                  <div className="bg-white bg-opacity-20 rounded-2xl p-3 mb-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="text-3xl">{currentPhaseInfo.icon}</div>
+                      <div className="flex-1">
+                        <h2 className="font-bold text-base">{currentPhaseInfo.name}</h2>
+                        <p className="text-xs text-white text-opacity-90">{currentPhaseInfo.subtitle}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                      <span className="text-3xl font-bold">{currentPhaseDays}</span>
+                      <span className="text-sm">天 · 本阶段</span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowPhaseDetail(!showPhaseDetail)}
+                    className="w-full bg-white bg-opacity-20 hover:bg-opacity-30 rounded-xl py-2 text-sm font-semibold transition-all active:scale-95"
+                  >
+                    {showPhaseDetail ? '收起详情 ▲' : '查看本阶段详情 ▼'}
+                  </button>
+
+                  {showPhaseDetail && (
+                    <div className="mt-3 bg-white bg-opacity-20 rounded-2xl p-3 space-y-2 text-xs">
+                      <div>
+                        <p className="font-semibold mb-1">💡 核心理念</p>
+                        <p className="text-white text-opacity-90">{currentPhaseInfo.core}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold mb-1">📖 说明</p>
+                        <p className="text-white text-opacity-90">{currentPhaseInfo.description}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold mb-1">🎯 目标</p>
+                        {currentPhaseInfo.goals.map((goal, idx) => (
+                          <p key={idx} className="text-white text-opacity-90 mb-1">• {goal}</p>
+                        ))}
+                      </div>
+                      <div>
+                        <p className="font-semibold mb-1">📝 要点</p>
+                        {currentPhaseInfo.tips.map((tip, idx) => (
+                          <p key={idx} className="text-white text-opacity-90 mb-1">• {tip}</p>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setShowPhaseSelector(true)}
+                        className="w-full mt-2 bg-white text-gray-800 py-2 rounded-xl text-sm font-semibold active:scale-95 transition-transform"
+                      >
+                        切换到其他阶段
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* 统计卡片 */}
+                <div className="bg-white rounded-3xl shadow-xl p-4 mb-4">
+                  <div className="text-center mb-4">
+                    <p className="text-gray-600 text-xs mb-1">累计运动</p>
+                    <p className="text-5xl font-bold gradient-text mb-1">{totalDays}</p>
+                    <p className="text-gray-500 text-xs">天</p>
+                    <p className="text-purple-600 font-semibold mt-2 text-sm">🎉 坚持就是胜利！💪 继续加油</p>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    {phases.map((phase) => {
+                      const phaseDays = phaseStats[phase.id] || 0;
+                      return (
+                        <div key={phase.id} className={`${phase.lightBg} rounded-2xl p-2 text-center`}>
+                          <div className="text-2xl mb-1">{phase.icon}</div>
+                          <p className={`text-xl font-bold ${phase.textColor}`}>{phaseDays}</p>
+                          <p className="text-xs text-gray-600 mt-1">阶段{phase.id}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 日历 */}
+                <div className="bg-white rounded-3xl shadow-xl p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <button onClick={prevMonth} className="p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-95">
+                      <ChevronLeft />
+                    </button>
+                    <div className="text-center flex-1">
+                      <h2 className="text-xl font-bold gradient-text">
+                        {currentYear}年 {monthNames[currentMonth]}
+                      </h2>
+                      {!isCurrentMonth && (
+                        <button
+                          onClick={goToToday}
+                          className="text-xs text-purple-600 hover:text-purple-700 font-semibold mt-1 active:scale-95 transition-transform"
+                        >
+                          回到今天 →
+                        </button>
+                      )}
+                    </div>
+                    <button onClick={nextMonth} className="p-2 hover:bg-gray-100 rounded-xl transition-all active:scale-95">
+                      <ChevronRight />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {['日', '一', '二', '三', '四', '五', '六'].map(day => (
+                      <div key={day} className="text-center text-xs font-bold text-gray-600 py-1">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {Array(new Date(currentYear, currentMonth, 1).getDay()).fill(null).map((_, i) => (
+                      <div key={`empty-${i}`} className="aspect-square"></div>
+                    ))}
+                    
+                    {days.map(day => {
+                      const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const record = records[dateKey];
+                      const isChecked = !!record;
+                      const recordPhase = record && typeof record === 'object' ? record.phase : currentPhase;
+                      const phaseInfo = phases[recordPhase - 1];
+                      const isToday = day === today.getDate() && isCurrentMonth;
+                      const note = notes[dateKey];
+
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => toggleRecord(day)}
+                          className={`
+                            calendar-day aspect-square rounded-xl transition-all relative overflow-hidden
+                            ${isChecked 
+                              ? `bg-gradient-to-br ${phaseInfo.checkColor} text-white shadow-lg` 
+                              : 'bg-gray-100 text-gray-700 active:bg-gray-200'
+                            }
+                            ${isToday && !isChecked ? 'ring-2 ring-purple-400' : ''}
+                          `}
+                        >
+                          <div className="absolute top-0.5 left-1 font-bold text-xs">
+                            {day}
+                          </div>
+                          {isChecked && (
+                            <div className="absolute top-0.5 right-1 text-lg">
+                              {phaseInfo.icon}
+                            </div>
+                          )}
+                          {note && (
+                            <div className="absolute bottom-0 left-0 right-0 p-1 bg-black bg-opacity-20">
+                              <p className="note-display text-white leading-tight">{note}</p>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl border-2 border-purple-200">
+                    <p className="text-xs text-gray-700 mb-2 font-semibold">💡 提示：</p>
+                    <p className="text-xs text-gray-600 mb-2">点击日期打卡并添加笔记（可选）</p>
+                    <p className="text-xs text-gray-600 mb-2">数字在左上角，笔记显示在下方</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {phases.map((phase) => (
+                        <div key={phase.id} className="flex items-center gap-1">
+                          <div className={`w-5 h-5 rounded-lg bg-gradient-to-br ${phase.checkColor} flex items-center justify-center text-white text-xs font-bold`}>
+                            {phase.id}
+                          </div>
+                          <span className="text-xs text-gray-600">阶段{phase.id}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 设置菜单 */}
+              {showMenu && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end justify-center z-50">
+                  <div className="bg-white rounded-t-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <div className="sticky top-0 bg-white border-b-2 border-gray-100 p-4 flex justify-between items-center">
+                      <h2 className="text-xl font-bold gradient-text">设置与阶段详情</h2>
+                      <button onClick={() => setShowMenu(false)} className="p-2 hover:bg-gray-100 rounded-xl active:scale-95 transition-transform">
+                        <X />
+                      </button>
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="text-base font-bold text-gray-800 mb-3">切换阶段</h3>
+                      <div className="space-y-3 mb-6">
+                        {phases.map((phase) => {
+                          const phaseDays = phaseStats[phase.id] || 0;
+                          return (
+                            <button
+                              key={phase.id}
+                              onClick={() => changePhase(phase.id)}
+                              className="w-full text-left"
+                            >
+                              <div className={`p-4 rounded-2xl border-2 transition-all active:scale-98 ${
+                                currentPhase === phase.id ? `border-4 ${phase.borderColor} shadow-lg` : 'border-gray-200'
+                              }`}>
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className="text-3xl">{phase.icon}</div>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <h3 className={`text-base font-bold ${phase.textColor}`}>{phase.name}</h3>
+                                      {currentPhase === phase.id && (
+                                        <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full font-semibold">当前</span>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-gray-600 mb-1">{phase.subtitle}</p>
+                                    <p className="text-xs font-semibold text-purple-600">{phaseDays}天</p>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2 text-xs">
+                                  <p className="font-semibold text-gray-700">💡 {phase.core}</p>
+                                  <p className="text-gray-600">{phase.description}</p>
+                                  
+                                  <div className="mt-2">
+                                    <p className="font-semibold text-gray-700 mb-1">🎯 目标：</p>
+                                    {phase.goals.map((goal, idx) => (
+                                      <p key={idx} className="text-gray-600 ml-3 mb-1">• {goal}</p>
+                                    ))}
+                                  </div>
+                                  
+                                  <div className="mt-2">
+                                    <p className="font-semibold text-gray-700 mb-1">📝 要点：</p>
+                                    {phase.tips.map((tip, idx) => (
+                                      <p key={idx} className="text-gray-600 ml-3 mb-1">• {tip}</p>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className="space-y-3 mb-6">
+                        <h3 className="text-base font-bold text-gray-800">数据管理</h3>
+                        <button
+                          onClick={exportData}
+                          className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white py-3 rounded-2xl font-bold active:scale-95 transition-transform"
+                        >
+                          <Download />
+                          导出备份
+                        </button>
+                        <label className="w-full flex items-center justify-center gap-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white py-3 rounded-2xl font-bold active:scale-95 transition-transform cursor-pointer">
+                          <Upload />
+                          导入数据
+                          <input type="file" accept=".json" onChange={importData} className="hidden" />
+                        </label>
+                      </div>
+
+                      <div className="p-4 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-2xl mb-4">
+                        <p className="font-bold text-yellow-800 mb-2 text-base">⚠️ 重要提醒</p>
+                        <ul className="text-xs text-yellow-800 space-y-1">
+                          <li>• 数据已三重备份保存（localStorage + Cookie + IndexedDB）</li>
+                          <li>• 兼容所有国内浏览器（微信/QQ/支付宝/抖音）</li>
+                          <li>• 建议每月导出备份到微信收藏或云盘</li>
+                          <li>• 换手机前务必导出数据</li>
+                          <li>• 清理浏览器数据会删除所有记录</li>
+                        </ul>
+                      </div>
+
+                      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl">
+                        <p className="font-bold text-blue-800 mb-2 text-sm">📱 使用技巧</p>
+                        <ul className="text-xs text-blue-800 space-y-1">
+                          <li>• 日历数字在左上角，方便查看笔记内容</li>
+                          <li>• 点击日期即可打卡，笔记可选填</li>
+                          <li>• 每天的笔记会显示在日期下方</li>
+                          <li>• 点击已打卡日期可查看或修改笔记</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 打卡弹窗 */}
+              {selectedDate && (
+                <div className="fixed inset-0 bg-black bg-opacity-60 flex items-end md:items-center justify-center z-50">
+                  <div className="bg-white rounded-t-3xl md:rounded-3xl shadow-2xl p-4 max-w-md w-full">
+                    <h2 className="text-xl font-bold gradient-text mb-1">📝 {selectedDate}</h2>
+                    <p className="text-xs text-gray-600 mb-3">点击"完成打卡"即可记录，笔记可选填</p>
+                    
+                    <textarea
+                      ref={textareaRef}
+                      value={currentNote}
+                      onChange={(e) => setCurrentNote(e.target.value)}
+                      placeholder="记录今天的运动内容（可选）...
+
+例如：
+走路8000步
+感觉很棒！"
+                      className="w-full h-32 px-3 py-2 border-2 border-purple-300 rounded-2xl resize-none focus:border-purple-500 focus:outline-none mb-3 text-sm"
+                    />
+                    
+                    <div className="flex gap-2">
+                      <button
+                        onClick={saveNote}
+                        className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform"
+                      >
+                        ✅ 完成打卡
+                      </button>
+                      {records[selectedDate] && (
+                        <button
+                          onClick={deleteRecord}
+                          className="px-4 bg-red-500 text-white rounded-xl font-bold active:scale-95 transition-transform"
+                        >
+                          删除
+                        </button>
+                      )}
+                      <button
+                        onClick={cancelNote}
+                        className="px-4 bg-gray-200 text-gray-700 rounded-xl font-bold active:scale-95 transition-transform"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MobileCalendarApp />);
+    </script>
+</body>
+</html>
