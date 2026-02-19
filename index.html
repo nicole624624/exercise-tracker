@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>苹果型姐妹运动打卡</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .title-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .icon-circle {
+            width: 48px;
+            height: 48px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.9);
+            font-size: 14px;
+            margin: 2px 0 0 0;
+        }
+
+        .menu-button {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .phase-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            color: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .phase-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .phase-icon {
+            font-size: 32px;
+        }
+
+        .phase-info {
+            flex: 1;
+        }
+
+        .phase-info h3 {
+            font-size: 18px;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .phase-info p {
+            font-size: 14px;
+            opacity: 0.95;
+        }
+
+        .phase-count {
+            text-align: center;
+            background: rgba(255,255,255,0.2);
+            padding: 12px 20px;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        .count-number {
+            font-size: 32px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .count-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .detail-button {
+            width: 100%;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            font-weight: 500;
+        }
+
+        .detail-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .streak-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            color: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+
+        .streak-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .streak-subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            font-weight: normal;
+        }
+
+        .streak-count {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .streak-number {
+            font-size: 64px;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .streak-unit {
+            font-size: 24px;
+            margin-left: 8px;
+            opacity: 0.9;
+        }
+
+        .streak-encouragement {
+            text-align: center;
+            font-size: 18px;
+            opacity: 0.95;
+        }
+
+        .phase-progress-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .phase-item {
+            background: white;
+            border-radius: 16px;
+            padding: 20px 12px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .phase-icon-large {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .phase-count-large {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 4px;
+        }
+
+        .phase-label {
+            font-size: 13px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .submit-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-button:active {
+            transform: translateY(0);
+        }
+
+        .filter-section {
+            margin-bottom: 16px;
+            padding: 0 8px;
+        }
+
+        .filter-label {
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 12px;
+        }
+
+        .member-tabs {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .member-tab {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .member-tab:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .member-tab.active {
+            background: white;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+            font-size: 16px;
+        }
+
+        .record-item {
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .record-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .record-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .record-member {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        .record-type {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+        }
+
+        .record-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .record-details {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .delete-btn {
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s;
+        }
+
+        .delete-btn:hover {
+            background: #ff3838;
+            transform: translateY(-1px);
+        }
+
+        .calendar-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        .calendar-container {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header h3 {
+            font-size: 18px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .calendar-nav {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: #f0f0f0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            color: #667eea;
+            transition: all 0.3s;
+        }
+
+        .calendar-nav:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+
+        .calendar-day-header {
+            text-align: center;
+            font-size: 12px;
+            color: #999;
+            font-weight: 600;
+            padding: 8px 0;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .calendar-day:hover:not(.empty) {
+            background: #f0f0f0;
+        }
+
+        .calendar-day.empty {
+            cursor: default;
+        }
+
+        .calendar-day.has-exercise {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+        }
+
+        .calendar-day.today {
+            border: 2px solid #667eea;
+            font-weight: 600;
+        }
+
+        .close-calendar {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            transition: all 0.3s;
+        }
+
+        .close-calendar:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .milestone-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .milestone-card {
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideUp 0.5s;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(50px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .milestone-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: bounce 1s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .milestone-card h2 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+
+        .milestone-count {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin: 20px 0;
+        }
+
+        .milestone-message {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+
+        .milestone-button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .milestone-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .phase-progress-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .milestone-card {
+                padding: 30px 20px;
+            }
+
+            .milestone-icon {
+                font-size: 60px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { Component } = React;
+
+        class ExerciseTracker extends Component {
+            constructor(props) {
+                super(props);
+                this.state = {
+                    exercises: (() => {
+                        try {
+                            return JSON.parse(localStorage.getItem('exercises')) || [];
+                        } catch (e) {
+                            console.warn('localStorage not available');
+                            return [];
+                        }
+                    })(),
+                    currentFilter: 'all',
+                    formData: {
+                        member: '',
+                        type: '',
+                        duration: '',
+                        date: new Date().toISOString().split('T')[0],
+                        notes: ''
+                    },
+                    showCalendar: false,
+                    calendarDate: new Date(),
+                    showMilestoneModal: false
+                };
+            }
+
+            componentDidMount() {
+                this.checkMilestones();
+            }
+
+            componentDidUpdate(prevProps, prevState) {
+                if (prevState.exercises.length !== this.state.exercises.length) {
+                    this.checkMilestones();
+                }
+            }
+
+            getUniqueMembers = () => {
+                const members = [...new Set(this.state.exercises.map(ex => ex.member))];
+                return members.sort();
+            }
+
+            getMemberStats = (member) => {
+                const memberExercises = this.state.exercises.filter(ex => ex.member === member);
+                const uniqueDays = new Set(memberExercises.map(ex => ex.date)).size;
+                const totalMinutes = memberExercises.reduce((sum, ex) => sum + ex.duration, 0);
+                
+                const today = new Date();
+                const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                const thisWeekCount = memberExercises.filter(ex => new Date(ex.date) >= weekAgo).length;
+                
+                return { uniqueDays, totalMinutes, thisWeekCount, totalCount: memberExercises.length };
+            }
+
+            getStage = (count) => {
+                if (count >= 100) return { num: 4, icon: '🔥', name: '阶段4' };
+                if (count >= 50) return { num: 3, icon: '💪', name: '阶段3' };
+                if (count >= 20) return { num: 2, icon: '🏃‍♀️', name: '阶段2' };
+                return { num: 1, icon: '🌱', name: '阶段1' };
+            }
+
+            getCurrentPhaseInfo = () => {
+                const totalCount = this.state.exercises.length;
+                if (totalCount >= 100) return { 
+                    current: 4, 
+                    next: null, 
+                    progress: 100,
+                    remaining: 0,
+                    title: '第四阶段：运动已成为习惯',
+                    desc: '你已经是运动达人了！保持下去！🎉'
+                };
+                if (totalCount >= 50) return { 
+                    current: 3, 
+                    next: 4, 
+                    progress: ((totalCount - 50) / 50) * 100,
+                    remaining: 100 - totalCount,
+                    title: '第三阶段：运动成为生活方式',
+                    desc: '距离终极目标还有 ' + (100 - totalCount) + ' 次打卡'
+                };
+                if (totalCount >= 20) return { 
+                    current: 2, 
+                    next: 3, 
+                    progress: ((totalCount - 20) / 30) * 100,
+                    remaining: 50 - totalCount,
+                    title: '第二阶段：运动变得轻松',
+                    desc: '距离下个阶段还有 ' + (50 - totalCount) + ' 次打卡'
+                };
+                return { 
+                    current: 1, 
+                    next: 2, 
+                    progress: (totalCount / 20) * 100,
+                    remaining: 20 - totalCount,
+                    title: '第一阶段：以"动起来"为目标',
+                    desc: '不让自己受罪，欺骗大脑和身体'
+                };
+            }
+
+            getPhaseStats = (phaseNum) => {
+                const totalCount = this.state.exercises.length;
+                if (phaseNum === 1) return { count: Math.min(totalCount, 20), total: 20 };
+                if (phaseNum === 2) return { count: Math.max(0, Math.min(totalCount - 20, 30)), total: 30 };
+                if (phaseNum === 3) return { count: Math.max(0, Math.min(totalCount - 50, 50)), total: 50 };
+                if (phaseNum === 4) return { count: Math.max(0, totalCount - 100), total: '∞' };
+                return { count: 0, total: 0 };
+            }
+
+            checkMilestones = () => {
+                const totalCount = this.state.exercises.length;
+                const milestones = [20, 50, 100];
+                
+                const lastCount = parseInt(localStorage.getItem('lastMilestoneCheck') || '0');
+                
+                for (let milestone of milestones) {
+                    if (totalCount >= milestone && lastCount < milestone) {
+                        try {
+                            localStorage.setItem('lastMilestoneCheck', totalCount.toString());
+                        } catch (e) {
+                            console.warn('localStorage not available');
+                        }
+                        this.setState({ showMilestoneModal: milestone });
+                        break;
+                    }
+                }
+            }
+
+            handleInputChange = (e) => {
+                const { name, value } = e.target;
+                this.setState({
+                    formData: { ...this.state.formData, [name]: value }
+                });
+            }
+
+            handleSubmit = (e) => {
+                e.preventDefault();
+                const { member, type, duration, date, notes } = this.state.formData;
+
+                const exercise = {
+                    id: Date.now(),
+                    member: member.trim(),
+                    type,
+                    duration: parseInt(duration),
+                    date,
+                    notes: notes.trim(),
+                    createdAt: new Date().toISOString()
+                };
+
+                const exercises = [exercise, ...this.state.exercises];
+                try {
+                    localStorage.setItem('exercises', JSON.stringify(exercises));
+                } catch (e) {
+                    console.warn('localStorage not available');
+                }
+                
+                this.setState({
+                    exercises,
+                    formData: {
+                        member: '',
+                        type: '',
+                        duration: '',
+                        date: new Date().toISOString().split('T')[0],
+                        notes: ''
+                    }
+                });
+
+                alert(`✅ ${exercise.member}的运动记录添加成功！`);
+            }
+
+            deleteRecord = (id) => {
+                if (confirm('确定要删除这条记录吗？')) {
+                    const exercises = this.state.exercises.filter(ex => ex.id !== id);
+                    try {
+                        localStorage.setItem('exercises', JSON.stringify(exercises));
+                    } catch (e) {
+                        console.warn('localStorage not available');
+                    }
+                    this.setState({ exercises });
+                }
+            }
+
+            filterByMember = (member) => {
+                this.setState({ currentFilter: member });
+            }
+
+            toggleCalendar = () => {
+                this.setState({ showCalendar: !this.state.showCalendar });
+            }
+
+            getDaysInMonth = (date) => {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startDayOfWeek = firstDay.getDay();
+                
+                return { daysInMonth, startDayOfWeek, year, month };
+            }
+
+            hasExerciseOnDate = (dateStr) => {
+                return this.state.exercises.some(ex => ex.date === dateStr);
+            }
+
+            changeMonth = (delta) => {
+                const newDate = new Date(this.state.calendarDate);
+                newDate.setMonth(newDate.getMonth() + delta);
+                this.setState({ calendarDate: newDate });
+            }
+
+            render() {
+                const { exercises, currentFilter, formData, showCalendar, calendarDate, showMilestoneModal } = this.state;
+                const members = this.getUniqueMembers();
+                const filteredExercises = currentFilter === 'all' 
+                    ? exercises 
+                    : exercises.filter(ex => ex.member === currentFilter);
+
+                const totalCount = exercises.length;
+                const phaseInfo = this.getCurrentPhaseInfo();
+                const { daysInMonth, startDayOfWeek, year, month } = this.getDaysInMonth(calendarDate);
+
+                const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', 
+                                   '七月', '八月', '九月', '十月', '十一月', '十二月'];
+
+                return (
+                    <div className="container">
+                        <div className="header-section">
+                            <div className="title-row">
+                                <div className="icon-circle">📅</div>
+                                <div>
+                                    <h1>苹果型姐妹运动打卡</h1>
+                                    <p className="subtitle">小妹</p>
+                                </div>
+                            </div>
+                            <button className="menu-button">☰</button>
+                        </div>
+
+                        <div className="phase-banner">
+                            <div className="phase-header">
+                                <span className="phase-icon">🌱</span>
+                                <div className="phase-info">
+                                    <h3>{phaseInfo.title}</h3>
+                                    <p>{phaseInfo.desc}</p>
+                                </div>
+                                <div className="phase-count">
+                                    <div className="count-number">{totalCount}</div>
+                                    <div className="count-label">本阶段</div>
+                                </div>
+                            </div>
+                            <button className="detail-button" onClick={this.toggleCalendar}>
+                                📊 查看本阶段详情
+                            </button>
+                        </div>
+
+                        <div className="streak-card">
+                            <div className="streak-header">
+                                <span>🏆 累计运动</span>
+                                <span className="streak-subtitle">坚持就是胜利！</span>
+                            </div>
+                            <div className="streak-count">
+                                <span className="streak-number">{totalCount}</span>
+                                <span className="streak-unit">天</span>
+                            </div>
+                            <div className="streak-encouragement">
+                                💪 继续加油
+                            </div>
+                        </div>
+
+                        <div className="phase-progress-container">
+                            {[1, 2, 3, 4].map(phaseNum => {
+                                const stats = this.getPhaseStats(phaseNum);
+                                const icons = ['🌱', '🏃‍♀️', '💪', '🔥'];
+                                const names = ['阶段1', '阶段2', '阶段3', '阶段4'];
+                                return (
+                                    <div key={phaseNum} className="phase-item">
+                                        <div className="phase-icon-large">{icons[phaseNum-1]}</div>
+                                        <div className="phase-count-large">{stats.count}</div>
+                                        <div className="phase-label">{names[phaseNum-1]}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {showCalendar && (
+                            <div className="calendar-modal">
+                                <div className="calendar-container">
+                                    <div className="calendar-header">
+                                        <button className="calendar-nav" onClick={() => this.changeMonth(-1)}>‹</button>
+                                        <h3>{year}年 {monthNames[month]}</h3>
+                                        <button className="calendar-nav" onClick={() => this.changeMonth(1)}>›</button>
+                                    </div>
+                                    <div className="calendar-grid">
+                                        <div className="calendar-day-header">日</div>
+                                        <div className="calendar-day-header">一</div>
+                                        <div className="calendar-day-header">二</div>
+                                        <div className="calendar-day-header">三</div>
+                                        <div className="calendar-day-header">四</div>
+                                        <div className="calendar-day-header">五</div>
+                                        <div className="calendar-day-header">六</div>
+                                        
+                                        {[...Array(startDayOfWeek)].map((_, i) => (
+                                            <div key={`empty-${i}`} className="calendar-day empty"></div>
+                                        ))}
+                                        
+                                        {[...Array(daysInMonth)].map((_, i) => {
+                                            const day = i + 1;
+                                            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                                            const hasExercise = this.hasExerciseOnDate(dateStr);
+                                            const isToday = dateStr === new Date().toISOString().split('T')[0];
+                                            
+                                            return (
+                                                <div 
+                                                    key={day} 
+                                                    className={`calendar-day ${hasExercise ? 'has-exercise' : ''} ${isToday ? 'today' : ''}`}
+                                                >
+                                                    {day}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <button className="close-calendar" onClick={this.toggleCalendar}>关闭</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {showMilestoneModal && (
+                            <div className="milestone-overlay">
+                                <div className="milestone-card">
+                                    <div className="milestone-icon">🎉</div>
+                                    <h2>恭喜达成里程碑！</h2>
+                                    <p className="milestone-count">{showMilestoneModal} 次打卡</p>
+                                    <p className="milestone-message">
+                                        {showMilestoneModal === 20 && '太棒了！你已经完成第一阶段！'}
+                                        {showMilestoneModal === 50 && 'amazing！进入第三阶段了！'}
+                                        {showMilestoneModal === 100 && '你是真正的运动达人！🏆'}
+                                    </p>
+                                    <button 
+                                        className="milestone-button"
+                                        onClick={() => this.setState({ showMilestoneModal: false })}
+                                    >
+                                        继续加油 💪
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="card">
+                            <h2 style={{marginBottom: '20px', color: '#333'}}>📝 添加运动记录</h2>
+                            <form onSubmit={this.handleSubmit}>
+                                <div className="input-group">
+                                    <label htmlFor="member">成员姓名 *</label>
+                                    <input
+                                        type="text"
+                                        id="member"
+                                        name="member"
+                                        value={formData.member}
+                                        onChange={this.handleInputChange}
+                                        required
+                                        placeholder="请输入姓名"
+                                        list="memberList"
+                                    />
+                                    <datalist id="memberList">
+                                        {members.map(member => (
+                                            <option key={member} value={member} />
+                                        ))}
+                                    </datalist>
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="type">运动类型 *</label>
+                                    <select
+                                        id="type"
+                                        name="type"
+                                        value={formData.type}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    >
+                                        <option value="">请选择运动类型</option>
+                                        <option value="跑步">🏃‍♀️ 跑步</option>
+                                        <option value="瑜伽">🧘‍♀️ 瑜伽</option>
+                                        <option value="游泳">🏊‍♀️ 游泳</option>
+                                        <option value="健身">💪 健身</option>
+                                        <option value="骑行">🚴‍♀️ 骑行</option>
+                                        <option value="跳绳">🦘 跳绳</option>
+                                        <option value="普拉提">🤸‍♀️ 普拉提</option>
+                                        <option value="爬山">⛰️ 爬山</option>
+                                        <option value="其他">✨ 其他</option>
+                                    </select>
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="duration">运动时长(分钟) *</label>
+                                    <input
+                                        type="number"
+                                        id="duration"
+                                        name="duration"
+                                        value={formData.duration}
+                                        onChange={this.handleInputChange}
+                                        min="1"
+                                        required
+                                        placeholder="例如：30"
+                                    />
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="date">运动日期 *</label>
+                                    <input
+                                        type="date"
+                                        id="date"
+                                        name="date"
+                                        value={formData.date}
+                                        onChange={this.handleInputChange}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="input-group">
+                                    <label htmlFor="notes">备注(可选)</label>
+                                    <textarea
+                                        id="notes"
+                                        name="notes"
+                                        value={formData.notes}
+                                        onChange={this.handleInputChange}
+                                        placeholder="今天感觉怎么样？有什么想分享的？"
+                                    />
+                                </div>
+
+                                <button type="submit" className="submit-button">✅ 添加记录</button>
+                            </form>
+                        </div>
+
+                        <div className="filter-section">
+                            <span className="filter-label">📊 查看成员：</span>
+                            <div className="member-tabs">
+                                <div
+                                    className={`member-tab ${currentFilter === 'all' ? 'active' : ''}`}
+                                    onClick={() => this.filterByMember('all')}
+                                >
+                                    🌟 全部成员
+                                </div>
+                                {members.map(member => (
+                                    <div
+                                        key={member}
+                                        className={`member-tab ${currentFilter === member ? 'active' : ''}`}
+                                        onClick={() => this.filterByMember(member)}
+                                    >
+                                        {member}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="card">
+                            <h2 style={{marginBottom: '20px', color: '#333'}}>📊 运动记录</h2>
+                            {filteredExercises.length === 0 ? (
+                                <div className="empty-state">
+                                    {currentFilter === 'all' 
+                                        ? '还没有运动记录，快去添加吧！💪' 
+                                        : `${currentFilter} 还没有运动记录`}
+                                </div>
+                            ) : (
+                                filteredExercises.map(ex => (
+                                    <div key={ex.id} className="record-item">
+                                        <div className="record-header">
+                                            <div>
+                                                <span className="record-member">{ex.member}</span>
+                                                <span className="record-type">{ex.type}</span>
+                                            </div>
+                                            <span className="record-date">{ex.date}</span>
+                                        </div>
+                                        <div className="record-details">
+                                            ⏱️ 时长：{ex.duration} 分钟
+                                            {ex.notes && <><br />📝 备注：{ex.notes}</>}
+                                        </div>
+                                        <button 
+                                            className="delete-btn" 
+                                            onClick={() => this.deleteRecord(ex.id)}
+                                        >
+                                            🗑️ 删除
+                                        </button>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                );
+            }
+        }
+
+        ReactDOM.render(<ExerciseTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
