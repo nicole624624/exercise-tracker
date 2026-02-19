@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>苹果型姐妹运动打卡</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overscroll-behavior: none;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 50%, #ff8177 100%);
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            padding: 12px;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(255, 106, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+
+        .header .username {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .phase-info {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
+        }
+
+        .phase-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .phase-icon {
+            font-size: 24px;
+        }
+
+        .phase-days {
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        .stats-card {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .total-days {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .total-days .number {
+            font-size: 48px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .phase-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .phase-stat {
+            background: linear-gradient(135deg, #fff5eb 0%, #ffe8d6 100%);
+            border-radius: 16px;
+            padding: 12px 8px;
+            text-align: center;
+        }
+
+        .phase-stat .icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        .phase-stat .count {
+            font-size: 20px;
+            font-weight: bold;
+            color: #ff6a00;
+        }
+
+        .phase-stat .label {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .calendar-card {
+            background: white;
+            border-radius: 24px;
+            padding: 16px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .calendar-header button {
+            width: 40px;
+            height: 40px;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 12px;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .calendar-header button:active {
+            transform: scale(0.95);
+            background: #e5e5e5;
+        }
+
+        .calendar-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #ff6a00;
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin-bottom: 8px;
+        }
+
+        .weekday {
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            padding: 4px 0;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            border: none;
+            background: #f5f5f5;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .calendar-day:active {
+            transform: scale(0.95);
+        }
+
+        .calendar-day.checked {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(255, 106, 0, 0.3);
+        }
+
+        .calendar-day.today {
+            border: 2px solid #ff6a00;
+        }
+
+        .calendar-day .day-number {
+            position: absolute;
+            top: 2px;
+            left: 4px;
+            font-size: 11px;
+        }
+
+        .calendar-day .phase-emoji {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 14px;
+        }
+
+        .calendar-day .note-preview {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            font-size: 8px;
+            line-height: 1.2;
+            padding: 2px;
+            background: rgba(0, 0, 0, 0.2);
+            color: white;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 16px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 20px;
+            max-width: 400px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ffd4b3;
+            border-radius: 12px;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #ff6a00;
+        }
+
+        textarea.input-field {
+            resize: none;
+            height: 120px;
+        }
+
+        .button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .button:active {
+            transform: scale(0.98);
+        }
+
+        .button-primary {
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            color: white;
+            box-shadow: 0 4px 16px rgba(255, 106, 0, 0.3);
+        }
+
+        .button-secondary {
+            background: #f5f5f5;
+            color: #333;
+            margin-top: 8px;
+        }
+
+        .phase-selector {
+            display: grid;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .phase-option {
+            padding: 16px;
+            border: 2px solid #e5e5e5;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .phase-option:active {
+            transform: scale(0.98);
+        }
+
+        .phase-option.active {
+            border-color: #ff6a00;
+            border-width: 3px;
+            background: linear-gradient(135deg, #fff5eb 0%, #ffe8d6 100%);
+        }
+
+        .phase-option-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: #ff6a00;
+            margin-bottom: 4px;
+        }
+
+        .phase-option-desc {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .menu-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff9a56 0%, #ff6a00 100%);
+            border: none;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 16px rgba(255, 106, 0, 0.4);
+            cursor: pointer;
+            z-index: 999;
+        }
+
+        .menu-btn:active {
+            transform: scale(0.95);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button-group button {
+            flex: 1;
+        }
+
+        .button-delete {
+            background: #ff4444;
+            color: white;
+        }
+
+        .tip-box {
+            background: linear-gradient(135deg, #fff5eb 0%, #ffe8d6 100%);
+            border: 2px solid #ffd4b3;
+            border-radius: 16px;
+            padding: 12px;
+            margin-top: 12px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .tip-box strong {
+            color: #ff6a00;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" id="app"></div>
+    <button class="menu-btn" id="menuBtn" onclick="toggleMenu()">☰</button>
+
+    <script>
+        // 数据存储
+        let userData = {
+            name: '',
+            phase: 1,
+            records: {},
+            notes: {}
+        };
+
+        const phases = [
+            { id: 1, name: '第一阶段：以"动起来"为目标', icon: '🚶‍♀️', desc: '不让自己受罪，欺骗大脑和身体' },
+            { id: 2, name: '第二阶段：燃脂 + 提高心肺', icon: '🏃‍♀️', desc: '中低强度有氧 Zone 2 运动' },
+            { id: 3, name: '第三阶段：力量为主，有氧为辅', icon: '💪', desc: '维持体重、塑形的长期阶段' },
+            { id: 4, name: '第四阶段：上重量 + HIIT', icon: '🔥', desc: '增肌、突破肌肉耐力' }
+        ];
+
+        let currentYear = new Date().getFullYear();
+        let currentMonth = new Date().getMonth();
+        let selectedDate = null;
+
+        // 加载数据
+        function loadData() {
+            try {
+                const saved = localStorage.getItem('exerciseData');
+                if (saved) {
+                    userData = JSON.parse(saved);
+                    return true;
+                }
+            } catch (e) {}
+            return false;
+        }
+
+        // 保存数据
+        function saveData() {
+            try {
+                localStorage.setItem('exerciseData', JSON.stringify(userData));
+            } catch (e) {
+                alert('保存失败，请检查浏览器设置');
+            }
+        }
+
+        // 初始化
+        function init() {
+            if (!loadData() || !userData.name) {
+                showNameInput();
+            } else if (!userData.phase || userData.phase < 1 || userData.phase > 4) {
+                showPhaseSelector();
+            } else {
+                renderApp();
+            }
+        }
+
+        // 显示昵称输入
+        function showNameInput() {
+            const html = `
+                <div class="modal">
+                    <div class="modal-content">
+                        <div style="text-align: center; font-size: 48px; margin-bottom: 16px;">🎉</div>
+                        <h2 class="modal-title">欢迎使用<br>苹果型姐妹运动打卡系统</h2>
+                        <input type="text" class="input-field" id="nameInput" placeholder="请输入你的昵称（例如：小美）" />
+                        <button class="button button-primary" onclick="saveName()">下一步 →</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app').innerHTML = html;
+        }
+
+        function saveName() {
+            const name = document.getElementById('nameInput').value.trim();
+            if (name) {
+                userData.name = name;
+                saveData();
+                showPhaseSelector();
+            } else {
+                alert('请输入昵称');
+            }
+        }
+
+        // 显示阶段选择
+        function showPhaseSelector() {
+            const html = `
+                <div class="modal">
+                    <div class="modal-content">
+                        <h2 class="modal-title">选择你当前的阶段 ✨</h2>
+                        <p style="color: #666; font-size: 14px; margin-bottom: 16px;">请根据自己的实际情况选择：</p>
+                        <div class="phase-selector">
+                            ${phases.map(p => `
+                                <div class="phase-option ${userData.phase === p.id ? 'active' : ''}" onclick="selectPhase(${p.id})">
+                                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                                        <span style="font-size: 24px;">${p.icon}</span>
+                                        <strong class="phase-option-title">${p.name}</strong>
+                                    </div>
+                                    <p class="phase-option-desc">${p.desc}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="button button-primary" style="margin-top: 16px;" onclick="confirmPhase()">确认选择</button>
+                    </div>
+                </div>
+            `;
+            document.getElementById('app').innerHTML = html;
+        }
+
+        function selectPhase(id) {
+            userData.phase = id;
+            showPhaseSelector();
+        }
+
+        function confirmPhase() {
+            if (userData.phase >= 1 && userData.phase <= 4) {
+                saveData();
+                renderApp();
+            } else {
+                alert('请选择一个阶段');
+            }
+        }
+
+        // 渲染主界面
+        function renderApp() {
+            const phase = phases[userData.phase - 1];
+            const stats = getStats();
+            const calendar = generateCalendar();
+            
+            const html = `
+                <div class="header">
+                    <h1>🏃‍♀️ 苹果型姐妹运动打卡</h1>
+                    <div class="username">${userData.name}</div>
+                    <div class="phase-info">
+                        <div class="phase-title">
+                            <span class="phase-icon">${phase.icon}</span>
+                            <div>
+                                <div style="font-size: 14px;">${phase.name}</div>
+                                <div style="font-size: 12px; opacity: 0.9;">${phase.desc}</div>
+                            </div>
+                        </div>
+                        <div class="phase-days">${stats.currentPhaseDays} 天</div>
+                    </div>
+                </div>
+
+                <div class="stats-card">
+                    <div class="total-days">
+                        <div style="font-size: 12px; color: #666; margin-bottom: 4px;">累计运动</div>
+                        <div class="number">${stats.total}</div>
+                        <div style="font-size: 12px; color: #666;">天</div>
+                    </div>
+                    <div class="phase-stats">
+                        ${phases.map(p => `
+                            <div class="phase-stat">
+                                <div class="icon">${p.icon}</div>
+                                <div class="count">${stats.phases[p.id] || 0}</div>
+                                <div class="label">阶段${p.id}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="calendar-card">
+                    <div class="calendar-header">
+                        <button onclick="prevMonth()">←</button>
+                        <div class="calendar-title">${currentYear}年 ${currentMonth + 1}月</div>
+                        <button onclick="nextMonth()">→</button>
+                    </div>
+                    <div class="calendar-weekdays">
+                        ${['日', '一', '二', '三', '四', '五', '六'].map(d => `<div class="weekday">${d}</div>`).join('')}
+                    </div>
+                    <div class="calendar-days">
+                        ${calendar}
+                    </div>
+                    <div class="tip-box">
+                        <strong>💡 提示：</strong> 点击日期打卡并添加笔记（可选）
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('app').innerHTML = html;
+        }
+
+        // 生成日历
+        function generateCalendar() {
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const today = new Date();
+            const isCurrentMonth = currentYear === today.getFullYear() && currentMonth === today.getMonth();
+            
+            let html = '';
+            
+            // 空白格子
+            for (let i = 0; i < firstDay; i++) {
+                html += '<div></div>';
+            }
+            
+            // 日期
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const record = userData.records[dateKey];
+                const note = userData.notes[dateKey];
+                const isToday = isCurrentMonth && day === today.getDate();
+                const isChecked = !!record;
+                const phaseIcon = isChecked ? phases[(record.phase || userData.phase) - 1].icon : '';
+                
+                html += `
+                    <button class="calendar-day ${isChecked ? 'checked' : ''} ${isToday ? 'today' : ''}" 
+                            onclick="openDayModal('${dateKey}')">
+                        <span class="day-number">${day}</span>
+                        ${isChecked ? `<span class="phase-emoji">${phaseIcon}</span>` : ''}
+                        ${note ? `<div class="note-preview">${note}</div>` : ''}
+                    </button>
+                `;
+            }
+            
+            return html;
+        }
+
+        // 打开日期弹窗
+        function openDayModal(dateKey) {
+            selectedDate = dateKey;
+            const note = userData.notes[dateKey] || '';
+            const isChecked = !!userData.records[dateKey];
+            
+            const html = `
+                <div class="modal" onclick="if(event.target === this) closeDayModal()">
+                    <div class="modal-content">
+                        <h2 class="modal-title">📝 ${dateKey}</h2>
+                        <p style="font-size: 12px; color: #666; margin-bottom: 16px;">
+                            点击"完成打卡"即可记录，笔记可选填
+                        </p>
+                        <textarea class="input-field" id="noteInput" placeholder="记录今天的运动内容（可选）...
+
+例如：
+走路8000步
+感觉很棒！">${note}</textarea>
+                        <div class="button-group">
+                            <button class="button button-primary" onclick="saveDayRecord()">✅ 完成打卡</button>
+                            ${isChecked ? '<button class="button button-delete" onclick="deleteRecord()">删除</button>' : ''}
+                        </div>
+                        <button class="button button-secondary" onclick="closeDayModal()">取消</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function closeDayModal() {
+            document.querySelector('.modal').remove();
+            selectedDate = null;
+        }
+
+        function saveDayRecord() {
+            if (selectedDate) {
+                const note = document.getElementById('noteInput').value.trim();
+                userData.records[selectedDate] = { phase: userData.phase };
+                if (note) {
+                    userData.notes[selectedDate] = note;
+                } else {
+                    delete userData.notes[selectedDate];
+                }
+                saveData();
+                closeDayModal();
+                renderApp();
+            }
+        }
+
+        function deleteRecord() {
+            if (selectedDate && confirm('确定要删除这天的记录吗？')) {
+                delete userData.records[selectedDate];
+                delete userData.notes[selectedDate];
+                saveData();
+                closeDayModal();
+                renderApp();
+            }
+        }
+
+        // 统计数据
+        function getStats() {
+            const phases = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            Object.values(userData.records).forEach(r => {
+                if (r && r.phase) phases[r.phase]++;
+            });
+            return {
+                total: Object.keys(userData.records).length,
+                phases: phases,
+                currentPhaseDays: phases[userData.phase] || 0
+            };
+        }
+
+        // 月份切换
+        function prevMonth() {
+            if (currentMonth === 0) {
+                currentMonth = 11;
+                currentYear--;
+            } else {
+                currentMonth--;
+            }
+            renderApp();
+        }
+
+        function nextMonth() {
+            if (currentMonth === 11) {
+                currentMonth = 0;
+                currentYear++;
+            } else {
+                currentMonth++;
+            }
+            renderApp();
+        }
+
+        // 菜单
+        function toggleMenu() {
+            const html = `
+                <div class="modal" onclick="if(event.target === this) this.remove()">
+                    <div class="modal-content">
+                        <h2 class="modal-title">设置</h2>
+                        <button class="button button-primary" onclick="this.closest('.modal').remove(); showPhaseSelector()">
+                            切换阶段
+                        </button>
+                        <button class="button button-secondary" onclick="exportData()">
+                            📥 导出备份
+                        </button>
+                        <button class="button button-secondary" onclick="document.getElementById('importFile').click()">
+                            📤 导入数据
+                        </button>
+                        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)" />
+                        <button class="button button-secondary" onclick="this.closest('.modal').remove()">
+                            关闭
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', html);
+        }
+
+        function exportData() {
+            const data = JSON.stringify(userData, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `运动打卡_${userData.name}_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert('✅ 备份已下载！');
+        }
+
+        function importData(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        if (confirm('导入将覆盖当前数据，确定吗？')) {
+                            userData = data;
+                            saveData();
+                            init();
+                            alert('✅ 数据导入成功！');
+                        }
+                    } catch (e) {
+                        alert('❌ 文件格式错误');
+                    }
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        // 启动
+        init();
+    </script>
+</body>
+</html>
